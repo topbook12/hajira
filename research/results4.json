@@ -1,0 +1,116 @@
+{
+  "WebAuthn fingerprint authentication web app browser Android iOS support": [
+    {
+      "name": "An introduction to WebAuthn",
+      "url": "https://workos.com/blog/intro-to-webauthn",
+      "snippet": "Mar 24, 2025 — Widespread support: WebAuthn is supported by all major browsers (like Chrome, Firefox, Safari, and Edge) and platforms, making it widely ... Read more",
+      "host": "workos.com"
+    },
+    {
+      "name": "Biometric Login for Web Apps using WebAuthn",
+      "url": "https://banno.com/articles/biometric-login-for-web-apps",
+      "snippet": "Mar 30, 2021 — Biometric login for web apps using WebAuthn . Login to your banking website without the hassle of passwords or two-factor authentication. Chad ... Read more",
+      "host": "banno.com"
+    },
+    {
+      "name": "WebAuthn: Biometrics and security keys",
+      "url": "https://duo.com/product/multi-factor-authentication-mfa/authentication-methods/biometrics-and-security-keys",
+      "snippet": "All that's needed to enable Webauthn is a supported web browser , operating system and a strong, built-in biometric authenticator like TouchID to enable a ... Read more",
+      "host": "duo.com"
+    },
+    {
+      "name": "Does my browser support WebAuthn?",
+      "url": "https://webauthn.me/browser-support",
+      "snippet": "Browser support . Browser support for WebAuthn is quickly improving. You can find an overview of both platform and external authenticators on this page. Read more",
+      "host": "webauthn.me"
+    },
+    {
+      "name": "WebAuthn.io",
+      "url": "https://webauthn.io",
+      "snippet": "WebAuthn enjoys wide support in all evergreen browsers including Chrome, Safari, and Firefox, and in all modern operating systems including Android, iOS, macOS, ... Read more",
+      "host": "webauthn.io"
+    },
+    {
+      "name": "How to enable fingerprint WebAuthn on iOS",
+      "url": "https://stackoverflow.com/questions/61882187/how-to-enable-fingerprint-webauthn-on-ios",
+      "snippet": "FaceID and TouchID are supported starting with iOS 14 and macOS Big Sur. To make it work, for every allowCredentials entry that is a platform ... Read more",
+      "host": "stackoverflow.com"
+    }
+  ],
+  "WebAuthn platform authenticator attendance check-in web application": [
+    {
+      "name": "WebAuthn Authenticator | Curity Identity Server",
+      "url": "https://curity.io/resources/learn/webauthn-authenticator",
+      "snippet": "Web Authentication ( WebAuthn ) is a way of performing user authentication with the help of software or devices which can authenticate a user without a password. Read more",
+      "host": "curity.io"
+    },
+    {
+      "name": "What is WebAuthn? The web authentication API explained",
+      "url": "https://duo.com/learn/what-is-webauthn",
+      "snippet": "WebAuthn lets websites use public key cryptography for passwordless, phishing-resistant login. Learn how the API works and how to implement it.",
+      "host": "duo.com"
+    },
+    {
+      "name": "WebAuthn.io",
+      "url": "https://webauthn.io",
+      "snippet": "This site is designed by Duo Labs to test WebAuthn and passkeys. WebAuthn enjoys wide support in all evergreen browsers including Chrome, Safari, and Firefox,",
+      "host": "webauthn.io"
+    },
+    {
+      "name": "Biometric Login for Web Apps using WebAuthn",
+      "url": "https://banno.com/articles/biometric-login-for-web-apps",
+      "snippet": "Mar 30, 2021 — It allows a web application to offer the same convenient and secure access via biometric authentication .",
+      "host": "banno.com"
+    },
+    {
+      "name": "Web Authentication API - MDN Web Docs - Mozilla",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/Web_Authentication_API",
+      "snippet": "Oct 27, 2026 — The Web Authentication API ( WebAuthn ) is an extension of the Credential Management API that enables strong authentication with public key ...",
+      "host": "developer.mozilla.org"
+    },
+    {
+      "name": "What is WebAuthn and Why It Matters for Authentication",
+      "url": "https://fusionauth.io/blog/what-is-webauthn-why-do-you-care",
+      "snippet": "Sep 13, 2022 — WebAuthn , short for Web Authentication, is a passwordless, browser-based API. It supports account security with biometrics and public-key ...",
+      "host": "fusionauth.io"
+    }
+  ],
+  "progressive web app geolocation attendance check-in browser fingerprint WebAuthn": [
+    {
+      "name": "Web Authentication API - MDN Web Docs - Mozilla",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/Web_Authentication_API",
+      "snippet": "Oct 27, 2026 — The Web Authentication API ( WebAuthn ) is an extension of the Credential Management API that enables strong authentication with public key ...",
+      "host": "developer.mozilla.org"
+    },
+    {
+      "name": "Biometric Authentication",
+      "url": "https://whatpwacando.today/authentication",
+      "snippet": "Web Authentication API ( WebAuthn ) enables passwordless authentication through iOS FaceID, your device's fingerprint reader or an external USB Security Key. Read more",
+      "host": "whatpwacando.today"
+    },
+    {
+      "name": "Biometric Authentication with Passkeys - Demo & Code",
+      "url": "https://progressier.com/pwa-capabilities/biometric-authentication-with-passkeys",
+      "snippet": "Aug 31, 2026 — The Web Authentication API ( WebAuthn ) allows users to register and authenticate using their device's biometric capabilities, such as fingerprint ... Read more",
+      "host": "progressier.com"
+    },
+    {
+      "name": "Capabilities - PWA",
+      "url": "https://web.dev/learn/pwa/capabilities",
+      "snippet": "Apr 20, 2022 — the geolocation API. Biometric authentication (such as face or fingerprint recognition) using Web Authentication or WebAuthn .",
+      "host": "web.dev"
+    },
+    {
+      "name": "You can add biometric authentication to your webpage.",
+      "url": "https://stackoverflow.blog/2022/11/16/biometric-authentication-for-web-devs",
+      "snippet": "Nov 16, 2022 — How to add biometric functionality to your webapp · Check to see if WebAuthn is supported using a JavaScript API to test the current browser . Read more",
+      "host": "stackoverflow.blog"
+    },
+    {
+      "name": "Web authentication (WebAuthn) and passkeys | PingAM",
+      "url": "https://docs.pingidentity.com/pingam/8.1/am-authentication/authn-mfa-webauthn.html",
+      "snippet": "WebAuthn lets users authenticate with an authenticator device, such as the fingerprint scanner on their laptop or phone. The user's browser",
+      "host": "docs.pingidentity.com"
+    }
+  ]
+}

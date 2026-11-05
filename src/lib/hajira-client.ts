@@ -1,0 +1,272 @@
+'use client'
+
+import { io } from 'socket.io-client'
+
+/* ------------------------------ core types ------------------------------ */
+
+export type Role = 'TEACHER' | 'STUDENT'
+
+export type HajiraUser = {
+  id: string
+  name: string
+  phone: string
+  role: Role
+}
+
+/* --------------------------- API response types -------------------------- */
+
+export type CheckInStatus = 'PRESENT' | 'FLAGGED' | 'ABSENT'
+
+export type TeacherClassInfo = {
+  id: string
+  name: string
+  code: string
+  studentCount: number
+  activeSessionId: string | null
+}
+
+export type StudentClassInfo = {
+  id: string
+  name: string
+  code: string
+  teacherName: string
+  totalSessions: number
+  myPct: number
+}
+
+export type ActiveSessionInfo = {
+  id: string
+  classId: string
+  className: string
+  classCode: string
+  teacherName?: string
+  endsAt: string
+  durationSec: number
+  startedAt: string
+}
+
+export type RosterStudent = { id: string; name: string; phone: string }
+
+export type TeacherClassDetailData = {
+  role: 'TEACHER'
+  cls: { id: string; name: string; code: string; teacherName: string }
+  roster: RosterStudent[]
+  sessions: { id: string; startedAt: string; status: string; endsAt: string; presentCount: number }[]
+}
+
+export type StudentClassDetailData = {
+  role: 'STUDENT'
+  cls: { id: string; name: string; code: string; teacherName: string }
+  myPct: number
+  sessions: { id: string; startedAt: string; status: string; myStatus: CheckInStatus; myMethod: string | null }[]
+}
+
+export type LiveCheckInRow = {
+  id: string
+  studentId: string
+  studentName: string
+  studentPhone: string
+  status: CheckInStatus
+  distanceM: number | null
+  method: string
+  bioVerified: boolean
+  gpsOk: boolean
+  flags: string[]
+  createdAt: string
+}
+
+export type TeacherSessionData = {
+  role: 'TEACHER'
+  session: {
+    id: string
+    classId: string
+    className: string
+    classCode: string
+    status: 'ACTIVE' | 'CLOSED'
+    startedAt: string
+    endsAt: string
+    durationSec: number
+    radiusM: number
+    requireGps: boolean
+  }
+  rosterCount: number
+  checkIns: LiveCheckInRow[]
+}
+
+export type StudentSessionData = {
+  role: 'STUDENT'
+  session: {
+    id: string
+    classId: string
+    className: string
+    classCode: string
+    status: 'ACTIVE' | 'CLOSED'
+    startedAt: string
+    endsAt: string
+    durationSec: number
+  }
+  rosterCount: number
+  presentCount: number
+  myCheckIn: CheckInInfo | null
+}
+
+export type CheckInInfo = {
+  status: CheckInStatus
+  method: string
+  distanceM: number | null
+  bioVerified: boolean
+  gpsOk: boolean
+  flags: string[]
+  createdAt: string
+}
+
+export type QrInfo = {
+  payload: string
+  pin: string
+  slot: number
+  expiresInSec: number
+}
+
+export type ReportData = {
+  cls: { id: string; name: string; code: string }
+  totalSessions: number
+  threshold: number
+  rows: {
+    studentId: string
+    name: string
+    phone: string
+    present: number
+    flagged: number
+    absent: number
+    pct: number
+    eligible: boolean
+  }[]
+}
+
+/* ------------------------------ localStorage ----------------------------- */
+
+const USER_KEY = 'hajira_user'
+const DEVICE_KEY = 'hajira_device'
+
+export function getUser(): HajiraUser | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.localStorage.getItem(USER_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<HajiraUser> | null
+    if (parsed && typeof parsed.id === 'string' && (parsed.role === 'TEACHER' || parsed.role === 'STUDENT')) {
+      return parsed as HajiraUser
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+export function setUser(u: HajiraUser | null) {
+  if (typeof window === 'undefined') return
+  if (u) window.localStorage.setItem(USER_KEY, JSON.stringify(u))
+  else window.localStorage.removeItem(USER_KEY)
+}
+
+export function getDeviceId(): string {
+  if (typeof window === 'undefined') return ''
+  let id = window.localStorage.getItem(DEVICE_KEY)
+  if (!id) {
+    id =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `dev-${Math.random().toString(36).slice(2)}-${Date.now()}`
+    window.localStorage.setItem(DEVICE_KEY, id)
+  }
+  return id
+}
+
+/* --------------------------------- fetch --------------------------------- */
+
+export async function api<T>(
+  path: string,
+  opts?: { method?: string; body?: unknown }
+): Promise<T> {
+  const res = await fetch(path, {
+    method: opts?.method ?? 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-user-id': getUser()?.id ?? '',
+    },
+    body: opts?.body !== undefined ? JSON.stringify(opts.body) : undefined,
+  })
+  if (!res.ok) {
+    const data = (await res.json().catch(() => null)) as { error?: string } | null
+    throw new Error(data?.error ?? 'সমস্যা হয়েছে')
+  }
+  return (await res.json()) as T
+}
+
+/* ------------------------------- geolocation ----------------------------- */
+
+export function getPosition(): Promise<{ lat: number; lng: number; acc?: number } | null> {
+  return new Promise((resolve) => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      resolve(null)
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy }),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 30_000 }
+    )
+  })
+}
+
+/* --------------------------- WebAuthn fingerprint ------------------------ */
+
+export async function tryFingerprint(displayName: string): Promise<boolean> {
+  try {
+    if (typeof window === 'undefined') return false
+    if (!('PublicKeyCredential' in window)) return false
+    const challenge = crypto.getRandomValues(new Uint8Array(32))
+    const userId = crypto.getRandomValues(new Uint8Array(16))
+    const createPromise = (navigator as any).credentials.create({
+      publicKey: {
+        challenge,
+        rp: { name: 'Hajira Attendance' },
+        user: { id: userId, name: displayName, displayName },
+        pubKeyCredParams: [
+          { type: 'public-key', alg: -7 },
+          { type: 'public-key', alg: -257 },
+        ],
+        authenticatorSelection: {
+          authenticatorAttachment: 'platform',
+          userVerification: 'required',
+          residentKey: 'preferred',
+        },
+        timeout: 8000,
+        attestation: 'none',
+      },
+    })
+    // hang-proof: never let a stuck authenticator block check-in
+    const guard = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 9000))
+    const cred = await Promise.race([createPromise, guard])
+    return !!cred
+  } catch {
+    return false
+  }
+}
+
+/* -------------------------------- realtime ------------------------------- */
+
+ 
+let socket: any = null
+
+export function getSocket() {
+  if (!socket) {
+    socket = io('/?XTransformPort=3003', {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      timeout: 10000,
+    })
+  }
+  return socket
+}

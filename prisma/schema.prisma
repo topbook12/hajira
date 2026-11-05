@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,19 +8,69 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String       @id @default(cuid())
+  phone     String       @unique
+  name      String
+  role      String // TEACHER | STUDENT
+  deviceId  String? // device binding (one device per student)
+  createdAt DateTime     @default(now())
+  teaching  Class[]      @relation("TeacherClasses")
+  memberships Membership[]
+  checkIns  CheckIn[]
 }
 
-model Post {
+model Class {
+  id          String       @id @default(cuid())
+  name        String
+  code        String       @unique
+  teacherId   String
+  teacher     User         @relation("TeacherClasses", fields: [teacherId], references: [id])
+  memberships Membership[]
+  sessions    Session[]
+  createdAt   DateTime     @default(now())
+}
+
+model Membership {
   id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
+  classId   String
+  studentId String
+  class     Class    @relation(fields: [classId], references: [id])
+  student   User     @relation(fields: [studentId], references: [id])
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+
+  @@unique([classId, studentId])
+}
+
+model Session {
+  id          String    @id @default(cuid())
+  classId     String
+  class       Class     @relation(fields: [classId], references: [id])
+  status      String    @default("ACTIVE") // ACTIVE | CLOSED
+  secret      String // HMAC secret for rotating QR/PIN
+  lat         Float?
+  lng         Float?
+  radiusM     Int       @default(100)
+  requireGps  Boolean   @default(true)
+  durationSec Int       @default(120)
+  startedAt   DateTime  @default(now())
+  endsAt      DateTime
+  checkIns    CheckIn[]
+}
+
+model CheckIn {
+  id          String   @id @default(cuid())
+  sessionId   String
+  studentId   String
+  session     Session  @relation(fields: [sessionId], references: [id])
+  student     User     @relation(fields: [studentId], references: [id])
+  status      String   @default("PRESENT") // PRESENT | FLAGGED | ABSENT
+  distanceM   Float?
+  method      String   @default("BUTTON") // QR | PIN | BUTTON | MANUAL
+  bioVerified Boolean  @default(false)
+  gpsOk       Boolean  @default(false)
+  deviceId    String?
+  flags       String? // JSON string array of reasons
+  createdAt   DateTime @default(now())
+
+  @@unique([sessionId, studentId])
 }
