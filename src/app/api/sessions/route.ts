@@ -4,11 +4,12 @@ import {
   badRequest,
   randomSecret,
   requireUser,
+  serverError,
   unauthorized,
 } from '@/lib/hajira'
 
 /** Teacher starts an attendance session (captures classroom location) */
-export async function POST(req: NextRequest) {
+async function POST_impl(req: NextRequest) {
   const user = await requireUser(req)
   if (!user) return unauthorized()
   if (user.role !== 'TEACHER') return badRequest('Only teachers can start sessions')
@@ -57,4 +58,12 @@ export async function POST(req: NextRequest) {
   })
 
   return NextResponse.json({ session, warning })
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    return await POST_impl(req)
+  } catch (e) {
+    return serverError(e)
+  }
 }

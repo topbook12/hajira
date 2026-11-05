@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { forbidden, requireUser, unauthorized } from '@/lib/hajira'
+import { forbidden, requireUser, serverError, unauthorized } from '@/lib/hajira'
 
 /** Teacher closes the session */
-export async function POST(
+async function POST_impl(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
@@ -31,4 +31,15 @@ export async function POST(
     session: updated,
     summary: { presentCount, rosterCount },
   })
+}
+
+export async function POST(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  try {
+    return await POST_impl(req, ctx)
+  } catch (e) {
+    return serverError(e)
+  }
 }

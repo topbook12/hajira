@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { forbidden, requireUser, unauthorized } from '@/lib/hajira'
+import { forbidden, requireUser, serverError, unauthorized } from '@/lib/hajira'
 
 /** Class attendance report: per-student %, eligibility flag (teacher only) */
-export async function GET(
+async function GET_impl(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
@@ -70,4 +70,15 @@ export async function GET(
     threshold,
     rows,
   })
+}
+
+export async function GET(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  try {
+    return await GET_impl(req, ctx)
+  } catch (e) {
+    return serverError(e)
+  }
 }

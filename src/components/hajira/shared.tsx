@@ -11,6 +11,30 @@ import { cn } from '@/lib/utils'
 
 /* ------------------------------ format helpers --------------------------- */
 
+/** Weekday names, Bangladesh week starts on Sunday */
+export const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const
+
+export const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
+
+/** "09:30" -> 570 minutes from midnight */
+export function timeToMin(t: string): number {
+  const [h, m] = t.split(':').map((x) => parseInt(x, 10))
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return NaN
+  return h * 60 + m
+}
+
+/** 570 -> "09:30" */
+export function minToTime(min: number): string {
+  const h = Math.floor(min / 60)
+  const m = min % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
+/** 570..690 -> "09:30–11:30" (en dash, 24h) */
+export function timeRange(startMin: number, endMin: number): string {
+  return `${minToTime(startMin)}–${minToTime(endMin)}`
+}
+
 /** mm:ss countdown, latin digits */
 export function mmss(totalSec: number): string {
   const s = Math.max(0, Math.floor(totalSec))

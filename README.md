@@ -50,9 +50,45 @@ DATABASE_URL=file:./db/custom.db   # used by the Prisma CLI for local push
 bun run db:sync-turso   # idempotent CREATE IF NOT EXISTS against your Turso DB
 ```
 
-## Deploy free
+## Deploy free on Vercel (step by step)
 
-Push to GitHub → import in Vercel → add the env vars above → `bun run db:sync-turso` once. Total cost: **$0** for a department-sized deployment.
+Total cost: **$0**. Everything runs on free tiers (Vercel Hobby + Turso Free).
+
+1. **Push this repo to GitHub**
+   ```bash
+   git init && git add -A && git commit -m "Hajira MVP"
+   git remote add origin https://github.com/<you>/hajira.git
+   git push -u origin main
+   ```
+2. **Import into Vercel** — [vercel.com/new](https://vercel.com/new) → pick the repo → Framework auto-detects **Next.js** (no build settings to change).
+3. **Add the environment variables** (Project → Settings → Environment Variables) — copy each line from `.env.example`:
+   - `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` (from `turso db show` / `turso db tokens create`)
+   - `APP_SECRET` (`openssl rand -hex 32`) — use a NEW secret for production
+   - `TEACHER_SIGNUP_KEY` — change it from the default before sharing with faculty
+   - `NEXT_PUBLIC_DISABLE_REALTIME=1` — skip the websocket relay (Vercel has no long-lived server; live views then poll the REST API, which is the source of truth anyway)
+4. **Deploy** — Vercel runs `prisma generate` automatically via the postinstall script.
+5. **Push the schema to Turso once** (from your machine, not Vercel):
+   ```bash
+   bun run db:sync-turso
+   ```
+6. **Verify the deployment** — open `https://<your-app>.vercel.app/api` → should return `{"status":"ok","db":"ok"}`. Then sign up as a teacher with your `TEACHER_SIGNUP_KEY`.
+
+> Region: `vercel.json` pins serverless functions to `bom1` (Mumbai) — same region as the Turso DB and closest to Bangladesh, keeping check-in latency low.
+
+## Pilot checklist (one real teacher)
+
+- [ ] Create the class, note the join code, add the roster (paste `name,phone` CSV or let students join themselves)
+- [ ] Set the weekly timetable for the class (students see "Today's classes" on their home)
+- [ ] Run 2–3 live sessions with the projector QR; verify GPS + rotating PIN flag off-campus attempts
+- [ ] Export the Excel archive after each week — that file is the teacher's permanent record
+- [ ] Collect friction points (network? GPS indoors?) → feed Phase 2
+
+## Phase 2 roadmap
+
+1. **OTP verification** — phone-number OTP for signup (needs a cheap BD SMS gateway; e.g. WinText / SSL Wireless / bulksmsbd) — highest-priority
+2. **Timetable** ✅ shipped — weekly class schedule + "Today's classes" for students
+3. **SMS alerts** — at-risk students below the eligibility threshold (same gateway as OTP)
+4. Exam-eligibility calculator polish, LMS/ERP export, bKash/Nagad billing
 
 ## Security notes (MVP scope)
 

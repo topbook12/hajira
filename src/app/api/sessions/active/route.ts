@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireUser, unauthorized } from '@/lib/hajira'
+import { requireUser, serverError, unauthorized } from '@/lib/hajira'
 
 /** Active sessions relevant to the current user (teacher: own classes, student: enrolled classes) */
-export async function GET(req: NextRequest) {
+async function GET_impl(req: NextRequest) {
   const user = await requireUser(req)
   if (!user) return unauthorized()
 
@@ -51,4 +51,12 @@ export async function GET(req: NextRequest) {
       startedAt: s.startedAt,
     })),
   })
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    return await GET_impl(req)
+  } catch (e) {
+    return serverError(e)
+  }
 }

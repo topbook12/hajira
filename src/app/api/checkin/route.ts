@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { badRequest, haversineM, requireUser, unauthorized, verifyCode } from '@/lib/hajira'
+import { badRequest, haversineM, requireUser, serverError, unauthorized, verifyCode } from '@/lib/hajira'
 
 /**
  * Student check-in — the 3-proof verification engine:
@@ -8,7 +8,7 @@ import { badRequest, haversineM, requireUser, unauthorized, verifyCode } from '@
  *  2. WHERE -> GPS geofence around the classroom
  *  3. WHEN  -> active session within the 1-2 minute window (+ optional rotating QR/PIN)
  */
-export async function POST(req: NextRequest) {
+async function POST_impl(req: NextRequest) {
   const user = await requireUser(req)
   if (!user) return unauthorized()
   if (user.role !== 'STUDENT') return badRequest('Only students can check in')
@@ -89,19 +89,37 @@ export async function POST(req: NextRequest) {
 
   const status = flags.length ? 'FLAGGED' : 'PRESENT'
 
-  const checkIn = await db.checkIn.create({
-    data: {
-      sessionId,
-      studentId: user.id,
-      status,
-      distanceM,
-      method,
-      bioVerified,
-      gpsOk,
-      deviceId,
-      flags: flags.length ? JSON.stringify(flags) : null,
-    },
-  })
+  let checkIn
+  try {
+    checkIn = await db.checkIn.create({
+      data: {
+        sessionId,
+        studentId: user.id,
+        status,
+        distanceM,
+        method,
+        bioVerified,
+        gpsOk,
+        deviceId,
+        flags: flags.length ? JSON.stringify(flags) : null,
+      },
+    })
+  } catch (e: unknown) {
+    // Race: a second tab / double-tap got in first. The unique constraint
+    // (sessionId, studentId) guarantees exactly one record — treat it as the
+    // same happy outcome instead of surfacing an error.
+    const code = (e as { code?: string })?.code
+    if (code === 'P2002') {
+      const existing2 = await db.checkIn.findUnique({
+        where: { sessionId_studentId: { sessionId, studentId: user.id } },
+      })
+      return NextResponse.json(
+        { already: true, checkIn: existing2, message: 'Your attendance was already recorded' },
+        { status: 200 }
+      )
+    }
+    throw e
+  }
 
   return NextResponse.json({
     checkIn: {
@@ -120,4 +138,12 @@ export async function POST(req: NextRequest) {
         ? 'Attendance recorded successfully'
         : 'Checked in, but some items were flagged for review',
   })
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    return await POST_impl(req)
+  } catch (e) {
+    return serverError(e)
+  }
 }

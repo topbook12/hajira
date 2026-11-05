@@ -38,6 +38,7 @@ import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { api, getSocket, getPosition, type TeacherClassDetailData } from '@/lib/hajira-client'
+import TimetableEditor from '@/components/hajira/teacher/timetable-editor'
 import {
   fmtDateTime,
   CodeChip,
@@ -330,6 +331,9 @@ export default function TeacherClassDetail({
           </Button>
         </CardContent>
       </Card>
+
+      {/* Weekly schedule (Phase 2 — Timetable) */}
+      <TimetableEditor classId={classId} />
 
       <div className="grid gap-5 lg:grid-cols-2">
         {/* Roster */}

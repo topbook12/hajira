@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { badRequest, forbidden } from '@/lib/hajira'
+import { isTransientDbError } from '@/lib/db'
 import { hashPassword, setSessionCookie, verifyPassword } from '@/lib/auth'
 
 /**
@@ -82,7 +83,16 @@ export async function POST(req: NextRequest) {
     })
     setSessionCookie(res, created.id)
     return res
-  } catch {
+  } catch (e) {
+    // A dropped Turso socket is NOT "wrong credentials" — tell the truth so
+    // the user retries instead of thinking their password is wrong.
+    if (isTransientDbError(e)) {
+      return NextResponse.json(
+        { error: 'Network hiccup while signing in — please try again' },
+        { status: 503 }
+      )
+    }
+    console.error('[api:error][login]', e)
     return badRequest('Sign in failed — please try again')
   }
 }

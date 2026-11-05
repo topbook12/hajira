@@ -150,6 +150,27 @@ export type ReportData = {
   }[]
 }
 
+/* ------------------------------- timetable -------------------------------- */
+
+/** Weekly timetable slot — dayOfWeek: 0 = Sun … 6 = Sat; minutes from midnight */
+export type ClassSlot = {
+  id?: string
+  dayOfWeek: number
+  startMin: number
+  endMin: number
+  room?: string | null
+}
+
+/** One of the student's classes happening today */
+export type TodaySlot = {
+  classId: string
+  className: string
+  classCode: string
+  startMin: number
+  endMin: number
+  room: string | null
+}
+
 /* ------------------------------ localStorage ----------------------------- */
 
 const USER_KEY = 'hajira_user'
@@ -294,10 +315,40 @@ export async function tryFingerprint(displayName: string): Promise<boolean> {
 
 /* -------------------------------- realtime ------------------------------- */
 
- 
-let socket: any = null
+/**
+ * Live-event relay (socket.io) — an OPTIONAL accelerator, never a requirement.
+ *
+ * Every realtime consumer also polls the REST API (the source of truth), so
+ * if the relay is unreachable the app keeps working with slightly slower
+ * updates. On Vercel there is no long-lived socket server, so deployments
+ * set NEXT_PUBLIC_DISABLE_REALTIME=1 and skip connecting entirely — that
+ * also saves battery/data (no endless reconnect attempts).
+ */
+const REALTIME_DISABLED = process.env.NEXT_PUBLIC_DISABLE_REALTIME === '1'
 
-export function getSocket() {
+type MinimalSocket = {
+  emit: (event: string, ...args: unknown[]) => void
+  on: (event: string, cb: (...args: unknown[]) => void) => unknown
+  off: (event: string, cb?: (...args: unknown[]) => void) => unknown
+  connected: boolean
+}
+
+function makeNoopSocket(): MinimalSocket {
+  return {
+    emit: () => undefined,
+    on: () => undefined,
+    off: () => undefined,
+    connected: false,
+  }
+}
+
+let socket: MinimalSocket | null = null
+
+export function getSocket(): MinimalSocket {
+  if (REALTIME_DISABLED) {
+    if (!socket) socket = makeNoopSocket()
+    return socket
+  }
   if (!socket) {
     socket = io('/?XTransformPort=3003', {
       transports: ['websocket', 'polling'],

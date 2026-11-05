@@ -32,18 +32,17 @@ const raw = execSync(
   { encoding: 'utf8', cwd: new URL('..', import.meta.url).pathname }
 )
 
-// 2. Make it idempotent (only CREATE statements come out of migrate diff)
+// 2. Make it idempotent (only CREATE statements come out of migrate diff).
+//    NOTE: the diff script starts with comment lines and has no reliable
+//    statement-breakpoint markers, so we rewrite every statement GLOBALLY
+//    (multiline ^) instead of splitting on a marker — otherwise only the
+//    first statement becomes idempotent and re-runs fail with
+//    "table already exists".
 const sql = raw
-  .split('--> statement-breakpoint')
-  .map((s) => s.trim())
-  .filter(Boolean)
-  .map((s) =>
-    s
-      .replace(/^CREATE TABLE /i, 'CREATE TABLE IF NOT EXISTS ')
-      .replace(/^CREATE UNIQUE INDEX /i, 'CREATE UNIQUE INDEX IF NOT EXISTS ')
-      .replace(/^CREATE INDEX /i, 'CREATE INDEX IF NOT EXISTS ')
-  )
-  .join(';\n') + ';'
+  .replace(/^CREATE TABLE /gmi, 'CREATE TABLE IF NOT EXISTS ')
+  .replace(/^CREATE UNIQUE INDEX /gmi, 'CREATE UNIQUE INDEX IF NOT EXISTS ')
+  .replace(/^CREATE INDEX /gmi, 'CREATE INDEX IF NOT EXISTS ')
+  .trim()
 
 // 3. Apply to Turso
 const db = createClient({ url, authToken: token })

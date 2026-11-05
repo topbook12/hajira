@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import * as XLSX from 'xlsx'
 import { db } from '@/lib/db'
-import { forbidden, requireUser, unauthorized } from '@/lib/hajira'
+import { forbidden, requireUser, serverError, unauthorized } from '@/lib/hajira'
 
 /**
  * Excel export — the teacher's portable, offline copy of all attendance data.
@@ -14,7 +14,7 @@ import { forbidden, requireUser, unauthorized } from '@/lib/hajira'
  * Workbooks are tiny (a full class-year is a few hundred KB), which is why
  * Excel is Hajira's long-term archive format while the cloud DB stays lean.
  */
-export async function GET(
+async function GET_impl(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
@@ -150,4 +150,15 @@ export async function GET(
       'Content-Length': String(buf.length),
     },
   })
+}
+
+export async function GET(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  try {
+    return await GET_impl(req, ctx)
+  } catch (e) {
+    return serverError(e)
+  }
 }

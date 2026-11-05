@@ -1,8 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
-  /* config options here */
+  // `standalone` is only needed for the sandbox's self-hosted start script.
+  // Vercel builds its own output — enabling it there is unnecessary.
+  ...(process.env.VERCEL ? {} : { output: "standalone" as const }),
   typescript: {
     ignoreBuildErrors: true,
   },

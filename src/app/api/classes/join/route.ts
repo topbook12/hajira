@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { badRequest, requireUser, unauthorized } from '@/lib/hajira'
+import { badRequest, requireUser, serverError, unauthorized } from '@/lib/hajira'
 
 /** Student joins a class by code */
-export async function POST(req: NextRequest) {
+async function POST_impl(req: NextRequest) {
   const user = await requireUser(req)
   if (!user) return unauthorized()
   if (user.role !== 'STUDENT') return badRequest('Only students can join classes')
@@ -22,4 +22,12 @@ export async function POST(req: NextRequest) {
   })
 
   return NextResponse.json({ cls: { id: cls.id, name: cls.name, code: cls.code } })
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    return await POST_impl(req)
+  } catch (e) {
+    return serverError(e)
+  }
 }

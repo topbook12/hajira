@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getUserIdFromRequest } from '@/lib/auth'
+import { isTransientDbError } from '@/lib/db'
 
 export const SLOT_MS = 30_000 // rotating QR/PIN changes every 30 seconds
 
@@ -25,6 +26,25 @@ export function forbidden(msg = 'Not allowed') {
 
 export function badRequest(msg: string) {
   return NextResponse.json({ error: msg }, { status: 400 })
+}
+
+/**
+ * Last-resort error boundary for route handlers. With the retry layer in
+ * db.ts most transient Turso blips self-heal; whatever still reaches here
+ * gets a clear, honest message instead of an empty 500 page.
+ */
+export function serverError(e: unknown) {
+  console.error('[api:error]', e)
+  if (isTransientDbError(e)) {
+    return NextResponse.json(
+      { error: 'The network hiccuped while reaching the database — please try again' },
+      { status: 503 }
+    )
+  }
+  return NextResponse.json(
+    { error: 'Something went wrong on our side — please try again' },
+    { status: 500 }
+  )
 }
 
 /* ---------- geo ---------- */

@@ -2,21 +2,23 @@
 
 import * as React from 'react'
 
-import { ArrowLeft, CalendarClock, GraduationCap } from 'lucide-react'
+import { ArrowLeft, CalendarClock, CalendarDays, GraduationCap } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
-import { api, type StudentClassDetailData } from '@/lib/hajira-client'
+import { api, type ClassSlot, type StudentClassDetailData } from '@/lib/hajira-client'
 import {
   fmtDateTime,
   CheckStatusBadge,
+  DAY_NAMES,
   EmptyState,
   CodeChip,
   methodLabel,
   PulsingDot,
   ScrollList,
+  timeRange,
   useHajiraToasts,
 } from '@/components/hajira/shared'
 
@@ -29,12 +31,17 @@ export default function StudentClassDetail({
 }) {
   const { err } = useHajiraToasts()
   const [data, setData] = React.useState<StudentClassDetailData | null>(null)
+  const [slots, setSlots] = React.useState<ClassSlot[] | null>(null)
   const [loading, setLoading] = React.useState(true)
 
   const load = React.useCallback(async () => {
     try {
-      const d = await api<StudentClassDetailData>(`/api/classes/${classId}`)
+      const [d, tt] = await Promise.all([
+        api<StudentClassDetailData>(`/api/classes/${classId}`),
+        api<{ slots: ClassSlot[] }>(`/api/classes/${classId}/timetable`).catch(() => ({ slots: [] as ClassSlot[] })),
+      ])
       setData(d)
+      setSlots(tt.slots ?? [])
     } catch (e) {
       err('Could not load the class', e instanceof Error ? e.message : undefined)
     } finally {
@@ -113,6 +120,34 @@ export default function StudentClassDetail({
               You are at risk — make sure to attend the upcoming sessions.
             </p>
           ) : null}
+        </CardContent>
+      </Card>
+
+      {/* Weekly schedule */}
+      <Card className="card-3d">
+        <CardContent className="flex flex-col gap-3 p-6">
+          <h3 className="flex items-center gap-2 font-semibold text-heading">
+            <CalendarDays className="h-4 w-4 text-label" aria-hidden />
+            Weekly schedule
+          </h3>
+          {slots === null ? (
+            <div className="h-12 animate-pulse rounded-lg bg-secondary/60" aria-label="Loading timetable" />
+          ) : slots.length === 0 ? (
+            <p className="text-sm text-label">No weekly schedule published yet.</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {slots.map((s, i) => (
+                <li
+                  key={`${s.dayOfWeek}-${s.startMin}-${i}`}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-cream-soft/60 px-3 py-2"
+                >
+                  <span className="text-sm font-semibold text-heading">{DAY_NAMES[s.dayOfWeek]}</span>
+                  <span className="font-mono text-sm text-ink">{timeRange(s.startMin, s.endMin)}</span>
+                  <span className="truncate text-xs text-label">{s.room ? `Room ${s.room}` : ''}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </CardContent>
       </Card>
 

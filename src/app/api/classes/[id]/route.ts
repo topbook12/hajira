@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { forbidden, requireUser, unauthorized } from '@/lib/hajira'
+import { forbidden, requireUser, serverError, unauthorized } from '@/lib/hajira'
 
 /** Role-aware class detail: teacher gets roster+sessions, student gets own history */
-export async function GET(
+async function GET_impl(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
@@ -56,7 +56,10 @@ export async function GET(
   })
   const bySession = new Map(myCheckIns.map((c) => [c.sessionId, c]))
   const presentCount = myCheckIns.filter((c) => c.status === 'PRESENT').length
-  const pct = sessions.length ? Math.round((presentCount / sessions.length) * 100) : 0
+  // % is computed over ALL sessions of the class (matches /api/me),
+  // not just the 30 most recent ones shown below
+  const totalSessions = await db.session.count({ where: { classId: id } })
+  const pct = totalSessions ? Math.round((presentCount / totalSessions) * 100) : 0
 
   return NextResponse.json({
     role: 'STUDENT',
@@ -74,4 +77,15 @@ export async function GET(
       }
     }),
   })
+}
+
+export async function GET(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  try {
+    return await GET_impl(req, ctx)
+  } catch (e) {
+    return serverError(e)
+  }
 }

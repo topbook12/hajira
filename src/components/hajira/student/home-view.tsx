@@ -3,7 +3,7 @@
 import * as React from 'react'
 
 import { motion } from 'framer-motion'
-import { BookOpen, Loader2, Plus, Radio, Users } from 'lucide-react'
+import { BookOpen, CalendarDays, Loader2, Plus, Radio, Users } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -26,11 +26,13 @@ import {
   type ActiveSessionInfo,
   type HajiraUser,
   type StudentClassInfo,
+  type TodaySlot,
 } from '@/lib/hajira-client'
 import {
   EmptyState,
   mmss,
   PulsingDot,
+  timeRange,
   useCountdown,
   useHajiraToasts,
 } from '@/components/hajira/shared'
@@ -66,6 +68,7 @@ export default function StudentHomeView({
   const { ok, err } = useHajiraToasts()
   const [classes, setClasses] = React.useState<StudentClassInfo[] | null>(null)
   const [sessions, setSessions] = React.useState<ActiveSessionInfo[] | null>(null)
+  const [today, setToday] = React.useState<TodaySlot[] | null>(null)
   const [checkedMap, setCheckedMap] = React.useState<Record<string, boolean>>({})
   const [joinOpen, setJoinOpen] = React.useState(false)
   const [joinCode, setJoinCode] = React.useState('')
@@ -74,12 +77,14 @@ export default function StudentHomeView({
 
   const load = React.useCallback(async () => {
     try {
-      const [me, active] = await Promise.all([
+      const [me, active, todayRes] = await Promise.all([
         api<{ classes: StudentClassInfo[] }>('/api/me'),
         api<{ sessions: ActiveSessionInfo[] }>('/api/sessions/active'),
+        api<{ slots: TodaySlot[] }>('/api/timetable/today').catch(() => ({ slots: [] as TodaySlot[] })),
       ])
       setClasses(me.classes)
       setSessions(active.sessions)
+      setToday(todayRes.slots ?? [])
       const entries = await Promise.all(
         active.sessions.map(async (s) => {
           try {
@@ -95,6 +100,7 @@ export default function StudentHomeView({
       err('Could not load data', e instanceof Error ? e.message : undefined)
       if (!classes) setClasses([])
       if (!sessions) setSessions([])
+      if (!today) setToday([])
     }
   }, [])
 
@@ -226,6 +232,54 @@ export default function StudentHomeView({
               </motion.div>
             ))}
           </div>
+        )}
+      </div>
+
+      {/* Today's classes (Phase 2 — Timetable) */}
+      <div className="flex flex-col gap-3">
+        <h2 className="flex items-center gap-2 font-display text-2xl text-heading">
+          <CalendarDays className="h-5 w-5 text-ink" aria-hidden />
+          Today&rsquo;s classes
+        </h2>
+
+        {today === null ? (
+          <Skeleton className="h-16 rounded-xl" />
+        ) : today.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border bg-cream-soft/70 px-4 py-3 text-sm text-label">
+            No scheduled classes today.
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {today.map((s, i) => {
+              const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
+              const isNow = nowMin >= s.startMin && nowMin < s.endMin
+              return (
+                <motion.li
+                  key={`${s.classId}-${s.startMin}-${i}`}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2, delay: Math.min(i * 0.04, 0.2) }}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-cream-soft/60 px-3 py-2.5"
+                >
+                  <span className="font-mono text-sm font-bold tabular-nums text-ink">
+                    {timeRange(s.startMin, s.endMin)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onOpenClass(s.classId)}
+                    className="min-w-0 flex-1 truncate text-left text-sm font-medium text-heading hover:underline"
+                    aria-label={`Open ${s.className}`}
+                  >
+                    {s.className}
+                  </button>
+                  <span className="truncate text-xs text-label">{s.room ? `Room ${s.room}` : ''}</span>
+                  {isNow ? (
+                    <Badge className="badge-glow border-none bg-gold text-ink hover:bg-gold">Now</Badge>
+                  ) : null}
+                </motion.li>
+              )
+            })}
+          </ul>
         )}
       </div>
 

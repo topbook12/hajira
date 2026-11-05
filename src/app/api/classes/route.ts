@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { badRequest, randomClassCode, requireUser, unauthorized } from '@/lib/hajira'
+import { badRequest, randomClassCode, requireUser, serverError, unauthorized } from '@/lib/hajira'
 
 /** Teacher creates a class */
-export async function POST(req: NextRequest) {
+async function POST_impl(req: NextRequest) {
   const user = await requireUser(req)
   if (!user) return unauthorized()
   if (user.role !== 'TEACHER') return badRequest('Only teachers can create classes')
@@ -23,4 +23,12 @@ export async function POST(req: NextRequest) {
     data: { name, code, teacherId: user.id },
   })
   return NextResponse.json({ cls })
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    return await POST_impl(req)
+  } catch (e) {
+    return serverError(e)
+  }
 }

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { badRequest, forbidden, requireUser, unauthorized } from '@/lib/hajira'
+import { badRequest, forbidden, requireUser, serverError, unauthorized } from '@/lib/hajira'
 
 type Row = { name: string; phone: string }
 
 /** Teacher bulk-enrolls students: { students: [{name, phone}] } */
-export async function POST(
+async function POST_impl(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
@@ -45,4 +45,15 @@ export async function POST(
   }
 
   return NextResponse.json({ added, skipped })
+}
+
+export async function POST(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  try {
+    return await POST_impl(req, ctx)
+  } catch (e) {
+    return serverError(e)
+  }
 }
