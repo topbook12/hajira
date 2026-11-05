@@ -54,3 +54,4 @@ server.log
 /skills/
 # local sqlite data
 db/*.db
+upload/
