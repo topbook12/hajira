@@ -159,16 +159,21 @@ export default function InstallGate() {
     return () => window.removeEventListener('hajira:install-ready', syncEvt)
   }, [computeMode])
 
-  /* auto-open once per visit, shortly after load */
+  /* auto-open once per visit, shortly after load — never while the user is
+     mid-typing / mid-tap (a popup landing on the keyboard feels broken) */
   React.useEffect(() => {
     const t = setTimeout(() => {
-      if (autoShowEligible()) {
-        setMode(computeMode())
-        // Only auto-interrupt when we have something genuinely useful to say
-        const m = computeMode()
-        if (m === 'native' || m === 'ios') setOpen(true)
+      if (!autoShowEligible()) return
+      const el = document.activeElement
+      const typing = !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')
+      if (typing) return // they're busy — entry points stay available
+      const m = computeMode()
+      // Only auto-interrupt when we have something genuinely useful to say
+      if (m === 'native' || m === 'ios') {
+        setMode(m)
+        setOpen(true)
       }
-    }, 1600)
+    }, 2600)
     return () => clearTimeout(t)
   }, [])
 

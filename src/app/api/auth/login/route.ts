@@ -4,20 +4,25 @@ import { badRequest, forbidden } from '@/lib/hajira'
 import { isTransientDbError } from '@/lib/db'
 import { hashPassword, setSessionCookie, verifyPassword } from '@/lib/auth'
 import { clientIp, rateLimit } from '@/lib/rate-limit'
+import { normalizeBdPhone } from '@/lib/phone'
 
 /**
  * Sign in — or create an account on first use (find-or-create with password).
  *
- * - New phone     -> account created; password is set now; role as chosen.
- *   TEACHER role additionally requires the institute teacher key (no SMS
- *   cost, still keeps random students from opening teacher accounts).
- * - Existing phone-> password must match. A legacy account without a
- *   password (pre-password demo data) claims its password on this login.
+ * - Phone numbers are CANONICALIZED (01XXXXXXXXX): 015…, +880152…, 880152…
+ *   and 152… all reach the same account on every device.
+ * - Accounts are unique per (phone, role): one number may hold a teacher
+ *   account AND a student account (pilot reality — teachers demo the
+ *   student view on their own phone).
+ * - New phone + role -> account created; password is set now. TEACHER role
+ *   additionally requires the institute teacher key.
+ * - Existing phone + role -> password must match; cross-role matches get a
+ *   clear "switch the tab" error instead of a wrong-password lie.
  */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const phone = String(body?.phone || '').replace(/\D/g, '')
+    const phone = normalizeBdPhone(String(body?.phone || ''))
     const name = String(body?.name || '').trim()
     const password = String(body?.password || '')
     const role = body?.role === 'TEACHER' ? 'TEACHER' : 'STUDENT'
@@ -42,18 +47,15 @@ export async function POST(req: NextRequest) {
       return badRequest('Password must be at least 4 characters')
     }
 
-    const user = await db.user.findUnique({ where: { phone } })
+    // Same-role account first — a number may hold BOTH a teacher and a
+    // student account, so the same-role row must always win.
+    const user = await db.user.findUnique({ where: { phone_role: { phone, role } } })
 
     if (user) {
       // Existing account
       if (user.passwordHash) {
         if (!verifyPassword(password, user.passwordHash)) {
-          return badRequest('This phone is already registered — wrong password')
-        }
-        if (role !== user.role) {
-          return forbidden(
-            `This phone is registered as a ${user.role === 'TEACHER' ? 'teacher' : 'student'} — switch the tab on top`
-          )
+          return badRequest('Wrong password for this account')
         }
         const res = NextResponse.json({
           user: { id: user.id, name: user.name, phone: user.phone, role: user.role },
@@ -77,7 +79,19 @@ export async function POST(req: NextRequest) {
       return res
     }
 
-    // New account
+    // New account — but first: does this number exist under the OTHER role?
+    // Then the fix is one tap — say so instead of silently creating a dupe.
+    const other = await db.user.findUnique({
+      where: { phone_role: { phone, role: role === 'TEACHER' ? 'STUDENT' : 'TEACHER' } },
+    })
+    if (other) {
+      return forbidden(
+        other.role === 'TEACHER'
+          ? 'This number already has a TEACHER account — switch the tab on top to Teacher and sign in'
+          : 'This number already has a STUDENT account — switch the tab on top to Student and sign in'
+      )
+    }
+
     if (!name || name.length < 2) {
       return badRequest('Enter your full name')
     }

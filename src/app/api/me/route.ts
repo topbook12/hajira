@@ -15,7 +15,7 @@ async function GET_impl(req: NextRequest) {
     const classes = await db.class.findMany({
       where: { teacherId: user.id },
       include: {
-        _count: { select: { memberships: true } },
+        _count: { select: { memberships: true, sessions: true } },
         sessions: {
           where: { status: 'ACTIVE', endsAt: { gt: new Date() } },
           take: 1,
@@ -24,15 +24,45 @@ async function GET_impl(req: NextRequest) {
       },
       orderBy: { createdAt: 'desc' },
     })
+
+    // Class average attendance = PRESENT check-ins / (sessions × roster)
+    const withStats = await Promise.all(
+      classes.map(async (c) => {
+        const present = await db.checkIn.count({
+          where: { status: 'PRESENT', session: { classId: c.id } },
+        })
+        const capacity = c._count.sessions * c._count.memberships
+        return {
+          id: c.id,
+          name: c.name,
+          code: c.code,
+          studentCount: c._count.memberships,
+          totalSessions: c._count.sessions,
+          avgPct: capacity ? Math.round((present / capacity) * 100) : 0,
+          activeSessionId: c.sessions[0]?.id ?? null,
+        }
+      })
+    )
+
+    const totals = withStats.reduce(
+      (acc, c) => ({
+        students: acc.students + c.studentCount,
+        sessions: acc.sessions + c.totalSessions,
+      }),
+      { students: 0, sessions: 0 }
+    )
+
     return NextResponse.json({
       user: pub(user),
-      classes: classes.map((c) => ({
-        id: c.id,
-        name: c.name,
-        code: c.code,
-        studentCount: c._count.memberships,
-        activeSessionId: c.sessions[0]?.id ?? null,
-      })),
+      classes: withStats,
+      totals: {
+        classes: withStats.length,
+        students: totals.students,
+        sessions: totals.sessions,
+        avgPct: withStats.length
+          ? Math.round(withStats.reduce((s, c) => s + c.avgPct, 0) / withStats.length)
+          : 0,
+      },
     })
   }
 
@@ -58,12 +88,25 @@ async function GET_impl(req: NextRequest) {
         code: m.class.code,
         teacherName: m.class.teacher.name,
         totalSessions: total,
+        attendedSessions: present,
         myPct: total ? Math.round((present / total) * 100) : 0,
       }
     })
   )
 
-  return NextResponse.json({ user: pub(user), classes })
+  const totalSessions = classes.reduce((s, c) => s + c.totalSessions, 0)
+  const attendedSessions = classes.reduce((s, c) => s + c.attendedSessions, 0)
+
+  return NextResponse.json({
+    user: pub(user),
+    classes,
+    totals: {
+      classes: classes.length,
+      totalSessions,
+      attendedSessions,
+      overallPct: totalSessions ? Math.round((attendedSessions / totalSessions) * 100) : 0,
+    },
+  })
 }
 
 export async function GET(req: NextRequest) {

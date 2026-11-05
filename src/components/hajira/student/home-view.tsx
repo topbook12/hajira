@@ -3,29 +3,17 @@
 import * as React from 'react'
 
 import { motion } from 'framer-motion'
-import { BookOpen, CalendarDays, Loader2, Plus, Radio, Users } from 'lucide-react'
+import { CalendarDays, CheckCircle2, Radio, Users } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   api,
-  getSocket,
   type ActiveSessionInfo,
   type HajiraUser,
-  type StudentClassInfo,
+  type StudentTotals,
   type TodaySlot,
 } from '@/lib/hajira-client'
 import {
@@ -56,53 +44,94 @@ function SessionTimer({ endsAt }: { endsAt: string }) {
   )
 }
 
+function StatCard({
+  label,
+  value,
+  tone = 'default',
+}: {
+  label: string
+  value: string
+  tone?: 'default' | 'good' | 'warn'
+}) {
+  return (
+    <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border/60 bg-card px-2 py-3 text-center shadow-sm">
+      <span
+        className={
+          'font-display text-2xl font-bold tabular-nums ' +
+          (tone === 'good' ? 'text-green' : tone === 'warn' ? 'text-amber-600' : 'text-heading')
+        }
+      >
+        {value}
+      </span>
+      <span className="text-[11px] font-medium leading-tight text-label">{label}</span>
+    </div>
+  )
+}
+
 export default function StudentHomeView({
   user,
-  onOpenClass,
   reloadKey,
+  onOpenClass,
+  onTotals,
 }: {
   user: HajiraUser
-  onOpenClass: (classId: string) => void
   reloadKey: number
+  onOpenClass: (classId: string) => void
+  onTotals?: (totals: StudentTotals | undefined) => void
 }) {
-  const { ok, err } = useHajiraToasts()
-  const [classes, setClasses] = React.useState<StudentClassInfo[] | null>(null)
+  const { err } = useHajiraToasts()
+  const [totals, setTotals] = React.useState<StudentTotals | undefined>(undefined)
   const [sessions, setSessions] = React.useState<ActiveSessionInfo[] | null>(null)
   const [today, setToday] = React.useState<TodaySlot[] | null>(null)
   const [checkedMap, setCheckedMap] = React.useState<Record<string, boolean>>({})
-  const [joinOpen, setJoinOpen] = React.useState(false)
-  const [joinCode, setJoinCode] = React.useState('')
-  const [joining, setJoining] = React.useState(false)
   const [checkinSession, setCheckinSession] = React.useState<ActiveSessionInfo | null>(null)
+  const loadedOnce = React.useRef(false)
 
   const load = React.useCallback(async () => {
-    try {
-      const [me, active, todayRes] = await Promise.all([
-        api<{ classes: StudentClassInfo[] }>('/api/me'),
-        api<{ sessions: ActiveSessionInfo[] }>('/api/sessions/active'),
-        api<{ slots: TodaySlot[] }>('/api/timetable/today').catch(() => ({ slots: [] as TodaySlot[] })),
-      ])
-      setClasses(me.classes)
-      setSessions(active.sessions)
-      setToday(todayRes.slots ?? [])
-      const entries = await Promise.all(
-        active.sessions.map(async (s) => {
-          try {
-            const d = await api<{ myCheckIn: unknown | null }>(`/api/sessions/${s.id}`)
-            return [s.id, !!d.myCheckIn] as const
-          } catch {
-            return [s.id, false] as const
-          }
-        })
-      )
-      setCheckedMap(Object.fromEntries(entries))
-    } catch (e) {
-      err('Could not load data', e instanceof Error ? e.message : undefined)
-      if (!classes) setClasses([])
-      if (!sessions) setSessions([])
-      if (!today) setToday([])
+    // Each feed succeeds or fails INDEPENDENTLY — one flaky response must
+    // never blank the whole dashboard (the mobile "data won't load" trap).
+    const [meR, activeR, todayR] = await Promise.allSettled([
+      api<{ totals?: StudentTotals }>('/api/me'),
+      api<{ sessions: ActiveSessionInfo[] }>('/api/sessions/active'),
+      api<{ slots: TodaySlot[] }>('/api/timetable/today'),
+    ])
+
+    if (meR.status === 'fulfilled') {
+      setTotals(meR.value.totals)
+      onTotals?.(meR.value.totals)
+    } else {
+      // toast only on the FIRST failure — never spam every 10s poll
+      if (!loadedOnce.current) {
+        err('Data did not load', meR.reason instanceof Error ? meR.reason.message : undefined)
+      }
     }
-  }, [])
+
+    if (activeR.status === 'fulfilled') {
+      setSessions(activeR.value.sessions ?? [])
+    } else {
+      setSessions((prev) => prev ?? [])
+    }
+
+    if (todayR.status === 'fulfilled') {
+      setToday(todayR.value.slots ?? [])
+    } else {
+      setToday((prev) => prev ?? [])
+    }
+    loadedOnce.current = true
+
+    const activeList = activeR.status === 'fulfilled' ? activeR.value.sessions ?? [] : []
+    const entries = await Promise.all(
+      activeList.map(async (s) => {
+        try {
+          const d = await api<{ myCheckIn: unknown | null }>(`/api/sessions/${s.id}`)
+          return [s.id, !!d.myCheckIn] as const
+        } catch {
+          return [s.id, false] as const
+        }
+      })
+    )
+    setCheckedMap(Object.fromEntries(entries))
+  }, [err, onTotals])
 
   React.useEffect(() => {
     load()
@@ -114,74 +143,45 @@ export default function StudentHomeView({
     return () => clearInterval(iv)
   }, [load])
 
-  /* realtime: join class rooms, listen for session start/close */
-  const classIdsKey = React.useMemo(
-    () => (classes ?? []).map((c) => c.id).sort().join(','),
-    [classes]
-  )
-  React.useEffect(() => {
-    if (!classIdsKey) return
-    const ids = classIdsKey.split(',').filter(Boolean)
-    const sock = getSocket()
-    ids.forEach((id) => sock.emit('join-class', { classId: id }))
-    const onStarted = () => {
-      ok('A new session just started', 'Check in now!')
-      load()
-    }
-    const onClosed = () => {
-      load()
-    }
-    sock.on('session:started', onStarted)
-    sock.on('session:closed', onClosed)
-    return () => {
-      sock.off('session:started', onStarted)
-      sock.off('session:closed', onClosed)
-      ids.forEach((id) => sock.emit('leave-class', { classId: id }))
-    }
-  }, [classIdsKey, load, ok])
-
-  const joinClass = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const code = joinCode.trim().toUpperCase()
-    if (!code) {
-      err('Enter the class code')
-      return
-    }
-    setJoining(true)
-    try {
-      const res = await api<{ cls: { id: string; name: string; code: string } }>('/api/classes/join', {
-        method: 'POST',
-        body: { code },
-      })
-      ok(`Joined class: ${res.cls.name}`)
-      getSocket().emit('join-class', { classId: res.cls.id })
-      setJoinCode('')
-      setJoinOpen(false)
-      await load()
-    } catch (e) {
-      err('Could not join the class', e instanceof Error ? e.message : undefined)
-    } finally {
-      setJoining(false)
-    }
-  }
-
   const liveCount = (sessions ?? []).filter((s) => !checkedMap[s.id]).length
 
   return (
     <section aria-label="Student home" className="flex flex-col gap-6">
+      {/* My attendance at a glance */}
+      <div className="grid grid-cols-3 gap-2.5 sm:max-w-md">
+        {totals === undefined ? (
+          <>
+            <Skeleton className="h-[74px] rounded-xl" />
+            <Skeleton className="h-[74px] rounded-xl" />
+            <Skeleton className="h-[74px] rounded-xl" />
+          </>
+        ) : (
+          <>
+            <StatCard
+              label="Overall attendance"
+              value={`${totals.overallPct}%`}
+              tone={totals.overallPct >= 70 ? 'good' : totals.totalSessions > 0 ? 'warn' : 'default'}
+            />
+            <StatCard
+              label="Sessions attended"
+              value={`${totals.attendedSessions}/${totals.totalSessions}`}
+            />
+            <StatCard label="Classes joined" value={String(totals.classes)} />
+          </>
+        )}
+      </div>
+
       {/* Active sessions */}
       <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="flex items-center gap-2 font-display text-2xl text-heading">
-            <Radio className="h-5 w-5 text-ink" aria-hidden />
-            Live sessions
-            {liveCount > 0 ? (
-              <Badge className="badge-glow border-none bg-gold text-ink hover:bg-gold">
-                {liveCount} to check in
-              </Badge>
-            ) : null}
-          </h2>
-        </div>
+        <h2 className="flex items-center gap-2 font-display text-2xl text-heading">
+          <Radio className="h-5 w-5 text-ink" aria-hidden />
+          Live sessions
+          {liveCount > 0 ? (
+            <Badge className="badge-glow border-none bg-gold text-ink hover:bg-gold">
+              {liveCount} to check in
+            </Badge>
+          ) : null}
+        </h2>
 
         {sessions === null ? (
           <Skeleton className="h-36 rounded-xl" />
@@ -215,7 +215,8 @@ export default function StudentHomeView({
 
                     {checkedMap[s.id] ? (
                       <div className="flex items-center justify-between gap-2 rounded-lg bg-green/10 px-3 py-2.5">
-                        <span className="text-sm font-semibold text-green">
+                        <span className="flex items-center gap-1.5 text-sm font-semibold text-green">
+                          <CheckCircle2 className="h-4 w-4" aria-hidden />
                           Attendance recorded
                         </span>
                       </div>
@@ -282,128 +283,6 @@ export default function StudentHomeView({
           </ul>
         )}
       </div>
-
-      {/* My classes */}
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-display text-2xl text-heading">My Classes</h2>
-          <Button
-            variant="outline"
-            onClick={() => setJoinOpen(true)}
-            className="border-border font-semibold text-ink hover:bg-secondary"
-          >
-            <Plus className="h-4 w-4" aria-hidden />
-            Join a class
-          </Button>
-        </div>
-
-        {classes === null ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Skeleton className="h-36 rounded-xl" />
-            <Skeleton className="h-36 rounded-xl" />
-          </div>
-        ) : classes.length === 0 ? (
-          <EmptyState
-            icon={BookOpen}
-            title="You haven't joined any class yet"
-            hint="Use the class code your teacher shared to enroll."
-          />
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {classes.map((c, i) => (
-              <motion.div
-                key={c.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.25, delay: Math.min(i * 0.05, 0.3) }}
-              >
-                <Card
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => onOpenClass(c.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      onOpenClass(c.id)
-                    }
-                  }}
-                  className="card-3d card-inner-glow cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-label={`Open details for ${c.name}`}
-                >
-                  <CardContent className="flex flex-col gap-3 p-5">
-                    <div>
-                      <h3 className="font-semibold text-heading">{c.name}</h3>
-                      <p className="mt-0.5 text-xs text-label">
-                        Teacher: {c.teacherName} • {c.totalSessions} sessions
-                      </p>
-                    </div>
-                    <div>
-                      <div className="mb-1 flex items-center justify-between text-sm">
-                        <span className="text-body">Attendance</span>
-                        <span
-                          className={
-                            c.myPct >= 60
-                              ? 'font-mono font-bold text-green'
-                              : 'font-mono font-bold text-amber-600'
-                          }
-                        >
-                          {c.myPct}%
-                        </span>
-                      </div>
-                      <Progress
-                        value={c.myPct}
-                        className={
-                          c.myPct >= 60
-                            ? 'h-2 [&>div]:bg-green'
-                            : 'h-2 [&>div]:bg-gold-deep'
-                        }
-                        aria-label={`Attendance ${c.myPct}%`}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Join class dialog */}
-      <Dialog open={joinOpen} onOpenChange={setJoinOpen}>
-        <DialogContent className="dialog-sheet sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Join a class</DialogTitle>
-            <DialogDescription>Enter the code your teacher shared.</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={joinClass} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="join-code">Class code</Label>
-              <Input
-                id="join-code"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                placeholder="e.g. HJ-X7K2"
-                className="font-mono uppercase"
-                autoFocus
-                required
-              />
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setJoinOpen(false)}
-                className="border-border hover:bg-secondary"
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={joining} className="btn-3d btn-ink font-semibold">
-                {joining ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : 'Join class'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       {/* Check-in dialog */}
       <CheckinDialog

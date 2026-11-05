@@ -31,10 +31,29 @@ async function GET_impl(
       include: { student: { select: { id: true, name: true, phone: true } } },
       orderBy: { createdAt: 'asc' },
     })
+
+    // Per-student attendance over ALL sessions of this class
+    const totalSessions = await db.session.count({ where: { classId: id } })
+    const roster = await Promise.all(
+      memberships.map(async (m) => {
+        const present = await db.checkIn.count({
+          where: { studentId: m.student.id, status: 'PRESENT', session: { classId: id } },
+        })
+        return {
+          id: m.student.id,
+          name: m.student.name,
+          phone: m.student.phone,
+          presentCount: present,
+          pct: totalSessions ? Math.round((present / totalSessions) * 100) : null,
+        }
+      })
+    )
+
     return NextResponse.json({
       role: 'TEACHER',
       cls: { id: cls.id, name: cls.name, code: cls.code, teacherName: cls.teacher.name, threshold: cls.threshold },
-      roster: memberships.map((m) => m.student),
+      roster,
+      totalSessions,
       sessions: sessions.map((s) => ({
         id: s.id,
         startedAt: s.startedAt,

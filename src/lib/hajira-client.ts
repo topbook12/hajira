@@ -22,7 +22,16 @@ export type TeacherClassInfo = {
   name: string
   code: string
   studentCount: number
+  totalSessions: number
+  avgPct: number
   activeSessionId: string | null
+}
+
+export type TeacherTotals = {
+  classes: number
+  students: number
+  sessions: number
+  avgPct: number
 }
 
 export type StudentClassInfo = {
@@ -31,7 +40,15 @@ export type StudentClassInfo = {
   code: string
   teacherName: string
   totalSessions: number
+  attendedSessions: number
   myPct: number
+}
+
+export type StudentTotals = {
+  classes: number
+  totalSessions: number
+  attendedSessions: number
+  overallPct: number
 }
 
 export type ActiveSessionInfo = {
@@ -45,12 +62,19 @@ export type ActiveSessionInfo = {
   startedAt: string
 }
 
-export type RosterStudent = { id: string; name: string; phone: string }
+export type RosterStudent = {
+  id: string
+  name: string
+  phone: string
+  presentCount?: number
+  pct?: number | null
+}
 
 export type TeacherClassDetailData = {
   role: 'TEACHER'
   cls: { id: string; name: string; code: string; teacherName: string; threshold?: number }
   roster: RosterStudent[]
+  totalSessions?: number
   sessions: { id: string; startedAt: string; status: string; endsAt: string; presentCount: number }[]
 }
 
@@ -319,12 +343,15 @@ export async function tryFingerprint(displayName: string): Promise<boolean> {
  * Live-event relay (socket.io) — an OPTIONAL accelerator, never a requirement.
  *
  * Every realtime consumer also polls the REST API (the source of truth), so
- * if the relay is unreachable the app keeps working with slightly slower
- * updates. On Vercel there is no long-lived socket server, so deployments
- * set NEXT_PUBLIC_DISABLE_REALTIME=1 and skip connecting entirely — that
- * also saves battery/data (no endless reconnect attempts).
+ * the app keeps working with slightly slower updates when this is off.
+ *
+ * Realtime is OPT-IN via NEXT_PUBLIC_ENABLE_REALTIME=1 — set it only where a
+ * websocket server actually exists (self-hosted gateway / mini service).
+ * On serverless hosts (Vercel) there is no socket server: leaving this off
+ * prevents an endless reconnect storm that silently burns the phone's
+ * battery and mobile data on every dashboard screen.
  */
-const REALTIME_DISABLED = process.env.NEXT_PUBLIC_DISABLE_REALTIME === '1'
+const REALTIME_ENABLED = process.env.NEXT_PUBLIC_ENABLE_REALTIME === '1'
 
 type MinimalSocket = {
   emit: (event: string, ...args: unknown[]) => void
@@ -345,7 +372,7 @@ function makeNoopSocket(): MinimalSocket {
 let socket: MinimalSocket | null = null
 
 export function getSocket(): MinimalSocket {
-  if (REALTIME_DISABLED) {
+  if (!REALTIME_ENABLED) {
     if (!socket) socket = makeNoopSocket()
     return socket
   }

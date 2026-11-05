@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { badRequest, forbidden, requireUser, serverError, unauthorized } from '@/lib/hajira'
+import { normalizeBdPhone } from '@/lib/phone'
 
 type Row = { name: string; phone: string }
 
@@ -21,7 +22,10 @@ async function POST_impl(
   const body = await req.json().catch(() => null)
   const rows: Row[] = Array.isArray(body?.students) ? body.students : []
   const cleaned = rows
-    .map((r) => ({ name: String(r?.name || '').trim(), phone: String(r?.phone || '').trim() }))
+    .map((r) => ({
+      name: String(r?.name || '').trim(),
+      phone: normalizeBdPhone(String(r?.phone || '')),
+    }))
     .filter((r) => r.name && /^\d{6,15}$/.test(r.phone))
   if (!cleaned.length) return badRequest('Provide at least one student name and phone')
 
@@ -29,7 +33,7 @@ async function POST_impl(
   let skipped = 0
   for (const r of cleaned) {
     const student = await db.user.upsert({
-      where: { phone: r.phone },
+      where: { phone_role: { phone: r.phone, role: 'STUDENT' } },
       create: { phone: r.phone, name: r.name, role: 'STUDENT' },
       update: {},
     })

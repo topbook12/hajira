@@ -9,16 +9,18 @@ datasource db {
 
 model User {
   id           String   @id @default(cuid())
-  phone        String   @unique
+  phone        String // normalized 01XXXXXXXXX — unique PER ROLE (a teacher may also keep a student view account)
   name         String
   role         String // TEACHER | STUDENT
   passwordHash String? // scrypt hash — set on signup/first claim
   deviceId     String? // device binding (one device per student)
   createdAt    DateTime @default(now())
 
-  teaching    Class[]      @relation("TeacherClasses")
+  teaching   Class[]      @relation("TeacherClasses")
   memberships Membership[]
-  checkIns    CheckIn[]
+  checkIns   CheckIn[]
+
+  @@unique([phone, role])
 }
 
 model Class {

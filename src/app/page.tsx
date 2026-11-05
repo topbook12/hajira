@@ -15,9 +15,12 @@ import TeacherLiveSession from '@/components/hajira/teacher/live-session'
 import TeacherReportView from '@/components/hajira/teacher/report-view'
 import StudentHomeView from '@/components/hajira/student/home-view'
 import StudentClassDetail from '@/components/hajira/student/class-detail'
+import StudentClassesView from '@/components/hajira/student/classes-view'
+import StudentProfileView from '@/components/hajira/student/profile-view'
+import StudentTabs, { type StudentTab } from '@/components/hajira/student/tabs'
 
 type TeacherView = 'classes' | 'class-detail' | 'live' | 'report'
-type StudentView = 'home' | 'class-detail'
+type StudentView = StudentTab | 'class-detail'
 
 export default function HajiraPage() {
   const [booted, setBooted] = React.useState(false)
@@ -136,18 +139,7 @@ export default function HajiraPage() {
       body = <TeacherReportView classId={reportClassId} onBack={teacherBackToClasses} />
     }
   } else {
-    if (studentView === 'home') {
-      body = (
-        <StudentHomeView
-          user={user}
-          onOpenClass={(id) => {
-            setStudentClassId(id)
-            setStudentView('class-detail')
-          }}
-          reloadKey={reloadKey}
-        />
-      )
-    } else if (studentView === 'class-detail' && studentClassId) {
+    if (studentView === 'class-detail' && studentClassId) {
       body = (
         <StudentClassDetail
           classId={studentClassId}
@@ -158,8 +150,33 @@ export default function HajiraPage() {
           }}
         />
       )
+    } else if (studentView === 'classes') {
+      body = (
+        <StudentClassesView
+          reloadKey={reloadKey}
+          onOpenClass={(id) => {
+            setStudentClassId(id)
+            setStudentView('class-detail')
+          }}
+        />
+      )
+    } else if (studentView === 'profile') {
+      body = <StudentProfileView user={user} onLogout={handleLogout} />
+    } else {
+      body = (
+        <StudentHomeView
+          user={user}
+          reloadKey={reloadKey}
+          onOpenClass={(id) => {
+            setStudentClassId(id)
+            setStudentView('class-detail')
+          }}
+        />
+      )
     }
   }
+
+  const showStudentTabs = !!user && user.role === 'STUDENT' && studentView !== 'class-detail'
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
@@ -199,9 +216,33 @@ export default function HajiraPage() {
         </header>
       ) : null}
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:py-8">{body}</main>
+      <main
+        className={
+          'mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:py-8 ' +
+          (showStudentTabs ? 'pb-28 sm:pb-10' : '')
+        }
+      >
+        {showStudentTabs ? (
+          <div className="mb-5">
+            <StudentTabs
+              view={studentView}
+              onChange={(tab) => {
+                setStudentView(tab)
+                if (tab !== 'class-detail') setStudentClassId(null)
+              }}
+            />
+          </div>
+        ) : null}
+        {body}
+      </main>
 
-      <footer className="mt-auto border-t border-border bg-card/60">
+      {/* On a student's phone the fixed bottom tab bar replaces the footer —
+          it stays visible on larger screens. */}
+      <footer
+        className={
+          'mt-auto border-t border-border bg-card/60 ' + (showStudentTabs ? 'hidden sm:block' : '')
+        }
+      >
         <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-1 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-xs text-label sm:flex-row sm:text-left">
           <span>Hajira — Smart Attendance Platform</span>
           <span>Rotating QR • GPS geofence • Device binding • Excel archive</span>
