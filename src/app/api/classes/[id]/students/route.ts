@@ -11,19 +11,19 @@ export async function POST(
 ) {
   const user = await requireUser(req)
   if (!user) return unauthorized()
-  if (user.role !== 'TEACHER') return badRequest('শুধু শিক্ষক স্টুডেন্ট যোগ করতে পারেন')
+  if (user.role !== 'TEACHER') return badRequest('Only teachers can add students')
   const { id } = await ctx.params
 
   const cls = await db.class.findUnique({ where: { id } })
-  if (!cls) return NextResponse.json({ error: 'ক্লাস পাওয়া যায়নি' }, { status: 404 })
-  if (cls.teacherId !== user.id) return forbidden('এই ক্লাসের শিক্ষক আপনি নন')
+  if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 })
+  if (cls.teacherId !== user.id) return forbidden('You are not the teacher of this class')
 
   const body = await req.json().catch(() => null)
   const rows: Row[] = Array.isArray(body?.students) ? body.students : []
   const cleaned = rows
     .map((r) => ({ name: String(r?.name || '').trim(), phone: String(r?.phone || '').trim() }))
     .filter((r) => r.name && /^\d{6,15}$/.test(r.phone))
-  if (!cleaned.length) return badRequest('কমপক্ষে একজন স্টুডেন্টের নাম ও ফোন দিন')
+  if (!cleaned.length) return badRequest('Provide at least one student name and phone')
 
   let added = 0
   let skipped = 0

@@ -10,8 +10,7 @@ import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { api, type StudentClassDetailData } from '@/lib/hajira-client'
 import {
-  bn,
-  bnDateTime,
+  fmtDateTime,
   CheckStatusBadge,
   EmptyState,
   CodeChip,
@@ -37,11 +36,10 @@ export default function StudentClassDetail({
       const d = await api<StudentClassDetailData>(`/api/classes/${classId}`)
       setData(d)
     } catch (e) {
-      err('ক্লাস লোড করা যায়নি', e instanceof Error ? e.message : undefined)
+      err('Could not load the class', e instanceof Error ? e.message : undefined)
     } finally {
       setLoading(false)
     }
-     
   }, [classId])
 
   React.useEffect(() => {
@@ -62,8 +60,8 @@ export default function StudentClassDetail({
     return (
       <EmptyState
         icon={GraduationCap}
-        title="ক্লাসটি দেখা যাচ্ছে না"
-        hint="পেজটি রিফ্রেশ করে আবার চেষ্টা করুন।"
+        title="This class is unavailable"
+        hint="Refresh the page and try again."
       />
     )
   }
@@ -74,53 +72,61 @@ export default function StudentClassDetail({
     <section aria-label={data.cls.name} className="flex flex-col gap-5">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="truncate text-xl font-bold text-neutral-900">{data.cls.name}</h2>
-          <p className="mt-0.5 text-sm text-neutral-500">শিক্ষক: {data.cls.teacherName}</p>
+          <h2 className="truncate font-display text-2xl text-heading">{data.cls.name}</h2>
+          <p className="mt-0.5 text-sm text-label">Teacher: {data.cls.teacherName}</p>
         </div>
         <CodeChip code={data.cls.code} />
       </div>
 
       {/* Attendance progress */}
-      <Card className={atRisk ? 'border-amber-300 bg-amber-50/50 shadow-sm' : 'border-emerald-200 bg-emerald-50/50 shadow-sm'}>
+      <Card className={atRisk ? 'border border-amber-200 bg-amber-50/40 shadow-sm' : 'card-3d border border-green/20'}>
         <CardContent className="flex flex-col gap-3 p-6">
           <div className="flex items-end justify-between gap-3">
             <div>
-              <p className="text-sm font-medium text-neutral-600">আমার উপস্থিতি</p>
+              <p className="text-sm font-medium text-label">My attendance</p>
               <p
                 className={
                   atRisk
-                    ? 'text-4xl font-extrabold text-amber-600'
-                    : 'text-4xl font-extrabold text-emerald-700'
+                    ? 'font-display text-5xl text-amber-600'
+                    : 'font-display text-5xl text-green'
                 }
               >
-                {bn(data.myPct)}%
+                {data.myPct}%
               </p>
             </div>
             <Progress
               value={data.myPct}
-              className="mt-2 h-2 flex-1 self-center [&>div]:bg-emerald-600"
-              aria-label={`উপস্থিতি ${data.myPct}%`}
+              className={
+                atRisk
+                  ? 'mt-2 h-2 flex-1 self-center [&>div]:bg-gold-deep'
+                  : 'mt-2 h-2 flex-1 self-center [&>div]:bg-green'
+              }
+              aria-label={`Attendance ${data.myPct}%`}
             />
           </div>
-          <p className="text-sm text-neutral-600">পরীক্ষার জন্য ন্যূনতম ৬০% উপস্থিতি দরকার</p>
+          <p className="text-sm text-body">You need at least 60% attendance to sit for the exam</p>
           {atRisk ? (
             <p className="rounded-lg bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-800">
-              ⚠️ আপনি ঝুঁকিতে আছেন! পরের সেশনগুলোতে অবশ্যই উপস্থিত থাকুন।
+              You are at risk — make sure to attend the upcoming sessions.
             </p>
           ) : null}
         </CardContent>
       </Card>
 
       {/* Session history */}
-      <Card className="border-neutral-200 shadow-sm">
+      <Card className="card-3d">
         <CardContent className="flex flex-col gap-3 p-6">
-          <h3 className="flex items-center gap-2 font-semibold text-neutral-900">
-            <CalendarClock className="h-4 w-4 text-neutral-500" aria-hidden />
-            সেশন ইতিহাস
+          <h3 className="flex items-center gap-2 font-semibold text-heading">
+            <CalendarClock className="h-4 w-4 text-label" aria-hidden />
+            Session history
           </h3>
 
           {data.sessions.length === 0 ? (
-            <EmptyState icon={CalendarClock} title="এখনো কোনো সেশন হয়নি" hint="শিক্ষক সেশন শুরু করলে এখানে দেখা যাবে।" />
+            <EmptyState
+              icon={CalendarClock}
+              title="No sessions yet"
+              hint="Sessions will appear here once your teacher starts one."
+            />
           ) : (
             <ScrollList>
               <ul className="flex flex-col gap-2">
@@ -129,20 +135,20 @@ export default function StudentClassDetail({
                   return (
                     <li
                       key={s.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-neutral-100 bg-neutral-50/60 px-3 py-2.5"
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/60 bg-cream-soft/60 px-3 py-2.5"
                     >
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-neutral-900">
-                          {bnDateTime(s.startedAt)}
+                        <p className="truncate text-sm font-medium text-heading">
+                          {fmtDateTime(s.startedAt)}
                         </p>
                         {s.myMethod ? (
-                          <p className="text-xs text-neutral-500">পদ্ধতি: {methodLabel(s.myMethod)}</p>
+                          <p className="text-xs text-label">Method: {methodLabel(s.myMethod)}</p>
                         ) : null}
                       </div>
                       {isRunning ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">
-                          <PulsingDot color="emerald" />
-                          চলছে
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-green/10 px-2.5 py-1 text-xs font-bold text-green">
+                          <PulsingDot color="green" />
+                          Live now
                         </span>
                       ) : (
                         <CheckStatusBadge status={s.myStatus} />
@@ -157,9 +163,9 @@ export default function StudentClassDetail({
       </Card>
 
       <div>
-        <Button variant="outline" onClick={onBack} className="border-neutral-300">
+        <Button variant="outline" onClick={onBack} className="border-border hover:bg-secondary">
           <ArrowLeft className="h-4 w-4" aria-hidden />
-          ফিরে যান
+          Back
         </Button>
       </div>
     </section>

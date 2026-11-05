@@ -20,7 +20,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { api, type TeacherClassInfo } from '@/lib/hajira-client'
-import { bn, CodeChip, EmptyState, PulsingDot, useHajiraToasts } from '@/components/hajira/shared'
+import { CodeChip, EmptyState, PulsingDot, useHajiraToasts } from '@/components/hajira/shared'
 
 export default function TeacherClassesView({
   onOpenClass,
@@ -42,10 +42,9 @@ export default function TeacherClassesView({
       const data = await api<{ classes: TeacherClassInfo[] }>('/api/me')
       setClasses(data.classes)
     } catch (e) {
-      err('ক্লাস লোড করা যায়নি', e instanceof Error ? e.message : undefined)
+      err('Could not load classes', e instanceof Error ? e.message : undefined)
       setClasses([])
     }
-     
   }, [])
 
   React.useEffect(() => {
@@ -56,7 +55,7 @@ export default function TeacherClassesView({
     e.preventDefault()
     const name = newName.trim()
     if (!name) {
-      err('ক্লাসের নাম লিখুন')
+      err('Enter a class name')
       return
     }
     setCreating(true)
@@ -65,30 +64,27 @@ export default function TeacherClassesView({
         method: 'POST',
         body: { name },
       })
-      ok(`ক্লাস তৈরি হয়েছে: ${res.cls.name}`, `শিক্ষার্থীদের কোড দিন: ${res.cls.code}`)
+      ok(`Class created: ${res.cls.name}`, `Share this code with students: ${res.cls.code}`)
       setNewName('')
       setDialogOpen(false)
       await load()
     } catch (e) {
-      err('ক্লাস তৈরি করা যায়নি', e instanceof Error ? e.message : undefined)
+      err('Could not create the class', e instanceof Error ? e.message : undefined)
     } finally {
       setCreating(false)
     }
   }
 
   return (
-    <section aria-label="আমার ক্লাসসমূহ" className="flex flex-col gap-5">
+    <section aria-label="My classes" className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-neutral-900">আমার ক্লাসসমূহ</h2>
-          <p className="text-sm text-neutral-500">ক্লাসে প্রবেশ করে উপস্থিতি সেশন শুরু করুন</p>
+          <h2 className="font-display text-2xl text-heading">My Classes</h2>
+          <p className="text-sm text-label">Open a class to start an attendance session</p>
         </div>
-        <Button
-          onClick={() => setDialogOpen(true)}
-          className="bg-emerald-600 font-semibold text-white hover:bg-emerald-700"
-        >
+        <Button onClick={() => setDialogOpen(true)} className="btn-3d btn-ink font-semibold">
           <Plus className="h-4 w-4" aria-hidden />
-          নতুন ক্লাস
+          New class
         </Button>
       </div>
 
@@ -101,8 +97,8 @@ export default function TeacherClassesView({
       ) : classes.length === 0 ? (
         <EmptyState
           icon={BookOpen}
-          title="এখনো কোনো ক্লাস নেই। নতুন ক্লাস তৈরি করুন।"
-          hint="ক্লাস তৈরি করলে একটি ইউনিক কোড পাবেন — শিক্ষার্থীরা সেই কোড দিয়ে ক্লাসে যুক্ত হতে পারবে।"
+          title="No classes yet. Create your first class."
+          hint="Creating a class generates a unique join code — students use it to enroll themselves."
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -113,16 +109,16 @@ export default function TeacherClassesView({
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25, delay: Math.min(i * 0.05, 0.3) }}
             >
-              <Card className="flex h-full flex-col border-neutral-200 shadow-sm transition-shadow hover:shadow-md">
-                <CardContent className="flex h-full flex-col gap-3 p-4">
+              <Card className="card-3d card-inner-glow flex h-full flex-col">
+                <CardContent className="flex h-full flex-col gap-3 p-5">
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="line-clamp-2 font-semibold text-neutral-900" title={c.name}>
+                    <h3 className="line-clamp-2 font-semibold text-heading" title={c.name}>
                       {c.name}
                     </h3>
                     {c.activeSessionId ? (
-                      <Badge className="shrink-0 gap-1.5 bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                        <PulsingDot color="emerald" />
-                        সক্রিয় সেশন চলছে
+                      <Badge className="shrink-0 gap-1.5 border-none bg-green/10 text-green hover:bg-green/10">
+                        <PulsingDot color="green" />
+                        Live session
                       </Badge>
                     ) : null}
                   </div>
@@ -131,20 +127,21 @@ export default function TeacherClassesView({
                     <CodeChip code={c.code} />
                   </div>
 
-                  <p className="inline-flex items-center gap-1.5 text-sm text-neutral-600">
-                    <Users className="h-4 w-4 text-neutral-400" aria-hidden />
-                    {bn(c.studentCount)} জন শিক্ষার্থী
+                  <p className="inline-flex items-center gap-1.5 text-sm text-body">
+                    <Users className="h-4 w-4 text-label" aria-hidden />
+                    {c.studentCount} students
                   </p>
 
                   <div className="mt-auto flex gap-2 pt-1">
-                    <Button
-                      onClick={() => onOpenClass(c.id)}
-                      className="h-9 flex-1 bg-emerald-600 font-semibold text-white hover:bg-emerald-700"
-                    >
-                      ক্লাস দেখুন
+                    <Button onClick={() => onOpenClass(c.id)} className="btn-3d btn-ink h-9 flex-1">
+                      Open class
                     </Button>
-                    <Button onClick={() => onOpenReport(c.id)} variant="outline" className="h-9 flex-1 border-neutral-300">
-                      রিপোর্ট
+                    <Button
+                      onClick={() => onOpenReport(c.id)}
+                      variant="outline"
+                      className="h-9 flex-1 border-border hover:bg-secondary"
+                    >
+                      Report
                     </Button>
                   </div>
                 </CardContent>
@@ -158,19 +155,19 @@ export default function TeacherClassesView({
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>নতুন ক্লাস তৈরি করুন</DialogTitle>
+            <DialogTitle>Create a new class</DialogTitle>
             <DialogDescription>
-              ক্লাস তৈরি হলে একটি ইউনিক কোড তৈরি হবে — শিক্ষার্থীরা সেটি দিয়ে যুক্ত হবে।
+              A unique join code will be generated — students use it to enroll.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={createClass} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="new-class-name">ক্লাসের নাম</Label>
+              <Label htmlFor="new-class-name">Class name</Label>
               <Input
                 id="new-class-name"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                placeholder="CSE 301 — সেকশন A"
+                placeholder="CSE 301 — Section A"
                 autoFocus
                 required
               />
@@ -180,16 +177,12 @@ export default function TeacherClassesView({
                 type="button"
                 variant="outline"
                 onClick={() => setDialogOpen(false)}
-                className="border-neutral-300"
+                className="border-border hover:bg-secondary"
               >
-                বাতিল
+                Cancel
               </Button>
-              <Button
-                type="submit"
-                disabled={creating}
-                className="bg-emerald-600 font-semibold text-white hover:bg-emerald-700"
-              >
-                {creating ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : 'তৈরি করুন'}
+              <Button type="submit" disabled={creating} className="btn-3d btn-ink font-semibold">
+                {creating ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : 'Create'}
               </Button>
             </DialogFooter>
           </form>

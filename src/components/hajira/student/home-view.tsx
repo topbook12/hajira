@@ -28,7 +28,6 @@ import {
   type StudentClassInfo,
 } from '@/lib/hajira-client'
 import {
-  bn,
   EmptyState,
   mmss,
   PulsingDot,
@@ -42,14 +41,14 @@ function SessionTimer({ endsAt }: { endsAt: string }) {
   const { remainingSec } = useCountdown(endsAt)
   if (remainingSec <= 0) {
     return (
-      <Badge variant="secondary" className="bg-neutral-100 text-neutral-500 hover:bg-neutral-100">
-        সময় শেষ
+      <Badge variant="secondary" className="bg-secondary text-label hover:bg-secondary">
+        Time over
       </Badge>
     )
   }
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 font-mono text-sm font-bold tabular-nums text-emerald-700">
-      <PulsingDot color="emerald" />
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-green/10 px-2.5 py-1 font-mono text-sm font-bold tabular-nums text-green">
+      <PulsingDot color="green" />
       {mmss(remainingSec)}
     </span>
   )
@@ -93,11 +92,10 @@ export default function StudentHomeView({
       )
       setCheckedMap(Object.fromEntries(entries))
     } catch (e) {
-      err('ডেটা লোড করা যায়নি', e instanceof Error ? e.message : undefined)
+      err('Could not load data', e instanceof Error ? e.message : undefined)
       if (!classes) setClasses([])
       if (!sessions) setSessions([])
     }
-     
   }, [])
 
   React.useEffect(() => {
@@ -121,7 +119,7 @@ export default function StudentHomeView({
     const sock = getSocket()
     ids.forEach((id) => sock.emit('join-class', { classId: id }))
     const onStarted = () => {
-      ok('নতুন সেশন চালু হয়েছে', 'এখনই উপস্থিতি দিন!')
+      ok('A new session just started', 'Check in now!')
       load()
     }
     const onClosed = () => {
@@ -140,7 +138,7 @@ export default function StudentHomeView({
     e.preventDefault()
     const code = joinCode.trim().toUpperCase()
     if (!code) {
-      err('ক্লাস কোড লিখুন')
+      err('Enter the class code')
       return
     }
     setJoining(true)
@@ -149,13 +147,13 @@ export default function StudentHomeView({
         method: 'POST',
         body: { code },
       })
-      ok(`ক্লাসে যুক্ত হয়েছে: ${res.cls.name}`)
+      ok(`Joined class: ${res.cls.name}`)
       getSocket().emit('join-class', { classId: res.cls.id })
       setJoinCode('')
       setJoinOpen(false)
       await load()
     } catch (e) {
-      err('ক্লাসে যুক্ত হওয়া যায়নি', e instanceof Error ? e.message : undefined)
+      err('Could not join the class', e instanceof Error ? e.message : undefined)
     } finally {
       setJoining(false)
     }
@@ -164,16 +162,16 @@ export default function StudentHomeView({
   const liveCount = (sessions ?? []).filter((s) => !checkedMap[s.id]).length
 
   return (
-    <section aria-label="শিক্ষার্থী হোম" className="flex flex-col gap-6">
+    <section aria-label="Student home" className="flex flex-col gap-6">
       {/* Active sessions */}
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="flex items-center gap-2 text-xl font-bold text-neutral-900">
-            <Radio className="h-5 w-5 text-emerald-600" aria-hidden />
-            চলমান সেশন
+          <h2 className="flex items-center gap-2 font-display text-2xl text-heading">
+            <Radio className="h-5 w-5 text-ink" aria-hidden />
+            Live sessions
             {liveCount > 0 ? (
-              <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                {bn(liveCount)} টি বাকি
+              <Badge className="badge-glow border-none bg-gold text-ink hover:bg-gold">
+                {liveCount} to check in
               </Badge>
             ) : null}
           </h2>
@@ -184,8 +182,8 @@ export default function StudentHomeView({
         ) : sessions.length === 0 ? (
           <EmptyState
             icon={Radio}
-            title="এখন কোনো সক্রিয় সেশন নেই।"
-            hint="শিক্ষক সেশন চালু করলেই এখানে দেখা যাবে — তখন দ্রুত উপস্থিতি দিন।"
+            title="No active session right now"
+            hint="When your teacher starts one, it appears here — check in fast."
           />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
@@ -196,31 +194,31 @@ export default function StudentHomeView({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.25 }}
               >
-                <Card className="border-emerald-200 bg-emerald-50/60 shadow-sm">
-                  <CardContent className="flex flex-col gap-3 p-4 sm:p-5">
+                <Card className="card-3d border-gradient-amber">
+                  <CardContent className="flex flex-col gap-3 p-5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <h3 className="truncate font-bold text-neutral-900">{s.className}</h3>
-                        <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-neutral-500">
+                        <h3 className="truncate font-bold text-heading">{s.className}</h3>
+                        <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-label">
                           <Users className="h-3.5 w-3.5" aria-hidden />
-                          {s.teacherName ?? 'শিক্ষক'}
+                          {s.teacherName ?? 'Teacher'}
                         </p>
                       </div>
                       <SessionTimer endsAt={s.endsAt} />
                     </div>
 
                     {checkedMap[s.id] ? (
-                      <div className="flex items-center justify-between gap-2 rounded-lg bg-emerald-100/80 px-3 py-2.5">
-                        <span className="text-sm font-semibold text-emerald-800">
-                          উপস্থিতি রেকর্ড হয়েছে ✅
+                      <div className="flex items-center justify-between gap-2 rounded-lg bg-green/10 px-3 py-2.5">
+                        <span className="text-sm font-semibold text-green">
+                          Attendance recorded
                         </span>
                       </div>
                     ) : (
                       <Button
                         onClick={() => setCheckinSession(s)}
-                        className="h-11 w-full bg-emerald-600 text-base font-bold text-white hover:bg-emerald-700"
+                        className="btn-3d btn-ink h-11 w-full text-base font-bold"
                       >
-                        উপস্থিতি দিন
+                        Check in now
                       </Button>
                     )}
                   </CardContent>
@@ -234,14 +232,14 @@ export default function StudentHomeView({
       {/* My classes */}
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-xl font-bold text-neutral-900">আমার ক্লাসসমূহ</h2>
+          <h2 className="font-display text-2xl text-heading">My Classes</h2>
           <Button
             variant="outline"
             onClick={() => setJoinOpen(true)}
-            className="border-emerald-300 font-semibold text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+            className="border-border font-semibold text-ink hover:bg-secondary"
           >
             <Plus className="h-4 w-4" aria-hidden />
-            ক্লাসে যুক্ত হোন
+            Join a class
           </Button>
         </div>
 
@@ -253,8 +251,8 @@ export default function StudentHomeView({
         ) : classes.length === 0 ? (
           <EmptyState
             icon={BookOpen}
-            title="এখনো কোনো ক্লাসে যুক্ত হননি।"
-            hint="শিক্ষকের দেওয়া ক্লাস কোড দিয়ে ক্লাসে যুক্ত হোন।"
+            title="You haven't joined any class yet"
+            hint="Use the class code your teacher shared to enroll."
           />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
@@ -275,33 +273,37 @@ export default function StudentHomeView({
                       onOpenClass(c.id)
                     }
                   }}
-                  className="cursor-pointer border-neutral-200 shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
-                  aria-label={`${c.name} ক্লাসের বিস্তারিত দেখুন`}
+                  className="card-3d card-inner-glow cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label={`Open details for ${c.name}`}
                 >
-                  <CardContent className="flex flex-col gap-3 p-4 sm:p-5">
+                  <CardContent className="flex flex-col gap-3 p-5">
                     <div>
-                      <h3 className="font-semibold text-neutral-900">{c.name}</h3>
-                      <p className="mt-0.5 text-xs text-neutral-500">
-                        শিক্ষক: {c.teacherName} • মোট সেশন: {bn(c.totalSessions)}
+                      <h3 className="font-semibold text-heading">{c.name}</h3>
+                      <p className="mt-0.5 text-xs text-label">
+                        Teacher: {c.teacherName} • {c.totalSessions} sessions
                       </p>
                     </div>
                     <div>
                       <div className="mb-1 flex items-center justify-between text-sm">
-                        <span className="text-neutral-600">উপস্থিতি</span>
+                        <span className="text-body">Attendance</span>
                         <span
                           className={
                             c.myPct >= 60
-                              ? 'font-mono font-bold text-emerald-700'
+                              ? 'font-mono font-bold text-green'
                               : 'font-mono font-bold text-amber-600'
                           }
                         >
-                          {bn(c.myPct)}%
+                          {c.myPct}%
                         </span>
                       </div>
                       <Progress
                         value={c.myPct}
-                        className="h-2 [&>div]:bg-emerald-600"
-                        aria-label={`উপস্থিতি ${c.myPct}%`}
+                        className={
+                          c.myPct >= 60
+                            ? 'h-2 [&>div]:bg-green'
+                            : 'h-2 [&>div]:bg-gold-deep'
+                        }
+                        aria-label={`Attendance ${c.myPct}%`}
                       />
                     </div>
                   </CardContent>
@@ -316,17 +318,17 @@ export default function StudentHomeView({
       <Dialog open={joinOpen} onOpenChange={setJoinOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>ক্লাসে যুক্ত হোন</DialogTitle>
-            <DialogDescription>শিক্ষকের দেওয়া ক্লাস কোড লিখুন।</DialogDescription>
+            <DialogTitle>Join a class</DialogTitle>
+            <DialogDescription>Enter the code your teacher shared.</DialogDescription>
           </DialogHeader>
           <form onSubmit={joinClass} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="join-code">ক্লাস কোড</Label>
+              <Label htmlFor="join-code">Class code</Label>
               <Input
                 id="join-code"
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                placeholder="যেমন: HJ-X7K2"
+                placeholder="e.g. HJ-X7K2"
                 className="font-mono uppercase"
                 autoFocus
                 required
@@ -337,16 +339,12 @@ export default function StudentHomeView({
                 type="button"
                 variant="outline"
                 onClick={() => setJoinOpen(false)}
-                className="border-neutral-300"
+                className="border-border hover:bg-secondary"
               >
-                বাতিল
+                Cancel
               </Button>
-              <Button
-                type="submit"
-                disabled={joining}
-                className="bg-emerald-600 font-semibold text-white hover:bg-emerald-700"
-              >
-                {joining ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : 'যুক্ত হোন'}
+              <Button type="submit" disabled={joining} className="btn-3d btn-ink font-semibold">
+                {joining ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : 'Join class'}
               </Button>
             </DialogFooter>
           </form>

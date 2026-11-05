@@ -17,15 +17,15 @@ export async function GET(
 ) {
   const user = await requireUser(req)
   if (!user) return unauthorized()
-  if (user.role !== 'TEACHER') return forbidden('শুধু শিক্ষকের জন্য')
+  if (user.role !== 'TEACHER') return forbidden('Teachers only')
   const { id } = await ctx.params
 
   const session = await db.session.findUnique({
     where: { id },
     include: { class: { select: { teacherId: true } } },
   })
-  if (!session) return NextResponse.json({ error: 'সেশন পাওয়া যায়নি' }, { status: 404 })
-  if (session.class.teacherId !== user.id) return forbidden('এই সেশনের শিক্ষক আপনি নন')
+  if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+  if (session.class.teacherId !== user.id) return forbidden('You are not the teacher of this session')
 
   const t = slotOf()
   const slot = session.endsAt.getTime() < Date.now() ? t : t

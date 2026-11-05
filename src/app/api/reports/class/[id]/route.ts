@@ -9,12 +9,12 @@ export async function GET(
 ) {
   const user = await requireUser(req)
   if (!user) return unauthorized()
-  if (user.role !== 'TEACHER') return forbidden('শুধু শিক্ষকের জন্য')
+  if (user.role !== 'TEACHER') return forbidden('Teachers only')
   const { id } = await ctx.params
 
   const cls = await db.class.findUnique({ where: { id } })
-  if (!cls) return NextResponse.json({ error: 'ক্লাস পাওয়া যায়নি' }, { status: 404 })
-  if (cls.teacherId !== user.id) return forbidden('এই ক্লাসের শিক্ষক আপনি নন')
+  if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 })
+  if (cls.teacherId !== user.id) return forbidden('You are not the teacher of this class')
 
   const url = new URL(req.url)
   const threshold = Math.min(Math.max(Number(url.searchParams.get('threshold')) || 60, 0), 100)

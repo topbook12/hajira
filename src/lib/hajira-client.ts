@@ -148,23 +148,37 @@ export type ReportData = {
 const USER_KEY = 'hajira_user'
 const DEVICE_KEY = 'hajira_device'
 
+/**
+ * Per-tab identity cache. Each tab keeps the user who signed in within it,
+ * so opening the app in a second tab (or logging out elsewhere) never swaps
+ * this tab's identity mid-session. localStorage is only the boot/persist layer.
+ */
+let cachedUser: HajiraUser | null | undefined
+
 export function getUser(): HajiraUser | null {
   if (typeof window === 'undefined') return null
+  if (cachedUser !== undefined) return cachedUser
   try {
     const raw = window.localStorage.getItem(USER_KEY)
-    if (!raw) return null
+    if (!raw) {
+      cachedUser = null
+      return null
+    }
     const parsed = JSON.parse(raw) as Partial<HajiraUser> | null
     if (parsed && typeof parsed.id === 'string' && (parsed.role === 'TEACHER' || parsed.role === 'STUDENT')) {
-      return parsed as HajiraUser
+      cachedUser = parsed as HajiraUser
+    } else {
+      cachedUser = null
     }
-    return null
   } catch {
-    return null
+    cachedUser = null
   }
+  return cachedUser
 }
 
 export function setUser(u: HajiraUser | null) {
   if (typeof window === 'undefined') return
+  cachedUser = u
   if (u) window.localStorage.setItem(USER_KEY, JSON.stringify(u))
   else window.localStorage.removeItem(USER_KEY)
 }
@@ -198,7 +212,7 @@ export async function api<T>(
   })
   if (!res.ok) {
     const data = (await res.json().catch(() => null)) as { error?: string } | null
-    throw new Error(data?.error ?? 'সমস্যা হয়েছে')
+    throw new Error(data?.error ?? 'Something went wrong')
   }
   return (await res.json()) as T
 }
@@ -264,7 +278,9 @@ export function getSocket() {
     socket = io('/?XTransformPort=3003', {
       transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionAttempts: 5,
+      reconnectionAttempts: Infinity, // never give up: gateway may blip mid-class
+      reconnectionDelay: 800,
+      reconnectionDelayMax: 5000,
       timeout: 10000,
     })
   }

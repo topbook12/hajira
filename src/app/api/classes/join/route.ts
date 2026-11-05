@@ -6,14 +6,14 @@ import { badRequest, requireUser, unauthorized } from '@/lib/hajira'
 export async function POST(req: NextRequest) {
   const user = await requireUser(req)
   if (!user) return unauthorized()
-  if (user.role !== 'STUDENT') return badRequest('শুধু শিক্ষার্থী ক্লাসে যুক্ত হতে পারে')
+  if (user.role !== 'STUDENT') return badRequest('Only students can join classes')
 
   const body = await req.json().catch(() => null)
   const code = String(body?.code || '').trim().toUpperCase()
-  if (!code) return badRequest('ক্লাস কোড দিন')
+  if (!code) return badRequest('Enter the class code')
 
   const cls = await db.class.findUnique({ where: { code } })
-  if (!cls) return badRequest('এই কোডে কোনো ক্লাস পাওয়া যায়নি')
+  if (!cls) return badRequest('No class found for this code')
 
   await db.membership.upsert({
     where: { classId_studentId: { classId: cls.id, studentId: user.id } },

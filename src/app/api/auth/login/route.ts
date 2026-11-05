@@ -14,10 +14,10 @@ export async function POST(req: NextRequest) {
     const role = body.role === 'TEACHER' ? 'TEACHER' : 'STUDENT'
 
     if (!/^\d{6,15}$/.test(phone)) {
-      return badRequest('সঠিক ফোন নম্বর দিন (শুধু ডিজিট)')
+      return badRequest('Enter a valid phone number (digits only)')
     }
     if (!name || name.length < 2) {
-      return badRequest('নাম লিখুন')
+      return badRequest('Enter your name')
     }
 
     let user = await db.user.findUnique({ where: { phone } })
@@ -29,6 +29,6 @@ export async function POST(req: NextRequest) {
       user: { id: user.id, name: user.name, phone: user.phone, role: user.role },
     })
   } catch {
-    return badRequest('লগইন ব্যর্থ হয়েছে')
+    return badRequest('Sign in failed')
   }
 }

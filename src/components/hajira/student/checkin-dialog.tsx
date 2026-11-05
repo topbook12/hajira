@@ -33,7 +33,6 @@ import {
   type HajiraUser,
 } from '@/lib/hajira-client'
 import {
-  bn,
   methodLabel,
   useHajiraToasts,
 } from '@/components/hajira/shared'
@@ -48,7 +47,7 @@ type Result =
   | { kind: 'already'; message: string }
   | { kind: 'error'; message: string }
 
-const STEP_LABELS = ['লোকেশন', 'কোড (ঐচ্ছিক)', 'যাচাই ও নিশ্চিতকরণ']
+const STEP_LABELS = ['Location', 'Code (optional)', 'Verify & confirm']
 
 export default function CheckinDialog({
   user,
@@ -127,7 +126,7 @@ export default function CheckinDialog({
       })
 
       if (res.already) {
-        setResult({ kind: 'already', message: res.message ?? 'আপনার উপস্থিতি আগেই রেকর্ড হয়েছে ✅' })
+        setResult({ kind: 'already', message: res.message ?? 'Your attendance was already recorded' })
       } else if (res.checkIn) {
         const ci: CheckInInfo = {
           status: res.checkIn.status,
@@ -149,13 +148,13 @@ export default function CheckinDialog({
           checkIn: { ...ci, id: `rt-${Date.now()}`, studentId: user.id, studentName: user.name, studentPhone: user.phone, sessionId: session.id },
         })
       } else {
-        setResult({ kind: 'error', message: 'অজানা সমস্যা হয়েছে' })
+        setResult({ kind: 'error', message: 'Something went wrong' })
       }
       onChecked?.()
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'সমস্যা হয়েছে'
+      const message = e instanceof Error ? e.message : 'Something went wrong'
       setResult({ kind: 'error', message })
-      err('চেক-ইন ব্যর্থ হয়েছে', message)
+      err('Check-in failed', message)
     } finally {
       setSubmitting(false)
     }
@@ -165,28 +164,28 @@ export default function CheckinDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{session?.className ?? 'উপস্থিতি'}</DialogTitle>
+          <DialogTitle>{session?.className ?? 'Attendance'}</DialogTitle>
           <DialogDescription>
-            {session?.teacherName ? `${session.teacherName} • ` : ''}৩ ধাপে উপস্থিতি নিশ্চিত করুন
+            {session?.teacherName ? `${session.teacherName} • ` : ''}Confirm your attendance in 3 steps
           </DialogDescription>
         </DialogHeader>
 
         {/* Stepper */}
-        <ol className="flex items-center gap-1.5" aria-label="চেক-ইন ধাপসমূহ">
+        <ol className="flex items-center gap-1.5" aria-label="Check-in steps">
           {STEP_LABELS.map((label, i) => (
             <li key={label} className="flex min-w-0 flex-1 items-center gap-1.5">
               <span
                 className={
                   'flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ' +
                   (result
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-emerald-600 text-white')
+                    ? 'bg-green/15 text-green'
+                    : 'bg-ink text-cream')
                 }
               >
-                {bn(i + 1)}
+                {i + 1}
               </span>
-              <span className="truncate text-[11px] font-medium text-neutral-500">{label}</span>
-              {i < STEP_LABELS.length - 1 ? <span className="h-px flex-1 bg-neutral-200" aria-hidden /> : null}
+              <span className="truncate text-[11px] font-medium text-label">{label}</span>
+              {i < STEP_LABELS.length - 1 ? <span className="h-px flex-1 bg-border" aria-hidden /> : null}
             </li>
           ))}
         </ol>
@@ -197,32 +196,32 @@ export default function CheckinDialog({
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.25 }}
-            className="flex flex-col items-center gap-3 rounded-xl border border-neutral-100 bg-neutral-50/60 p-6 text-center"
+            className="flex flex-col items-center gap-3 rounded-xl border border-border/60 bg-cream-soft/70 p-6 text-center"
           >
             {result.kind === 'present' ? (
               <>
-                <CheckCircle2 className="h-14 w-14 text-emerald-600" aria-hidden />
-                <p className="text-lg font-bold text-emerald-700">উপস্থিত নিশ্চিত হয়েছে!</p>
-                <p className="text-sm text-neutral-600">{result.message}</p>
+                <CheckCircle2 className="h-14 w-14 text-green" aria-hidden />
+                <p className="text-lg font-bold text-green">Attendance confirmed!</p>
+                <p className="text-sm text-body">{result.message}</p>
                 <div className="mt-1 flex flex-wrap justify-center gap-1.5 text-xs">
-                  <span className="rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-neutral-700">
-                    পদ্ধতি: {methodLabel(result.checkIn.method)}
+                  <span className="rounded-full border border-border bg-card px-2.5 py-1 text-body">
+                    Method: {methodLabel(result.checkIn.method)}
                   </span>
                   {result.checkIn.distanceM != null ? (
-                    <span className="rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-neutral-700">
-                      দূরত্ব: {bn(Math.round(result.checkIn.distanceM))} মি.
+                    <span className="rounded-full border border-border bg-card px-2.5 py-1 text-body">
+                      Distance: {Math.round(result.checkIn.distanceM)} m
                     </span>
                   ) : null}
                   {result.checkIn.bioVerified ? (
-                    <span className="rounded-full bg-emerald-100 px-2.5 py-1 font-medium text-emerald-700">
-                      ফিঙ্গারপ্রিন্ট ✓
+                    <span className="rounded-full bg-green/10 px-2.5 py-1 font-medium text-green">
+                      Fingerprint ✓
                     </span>
                   ) : null}
                   <span
                     className={
                       result.checkIn.gpsOk
-                        ? 'rounded-full bg-emerald-100 px-2.5 py-1 font-medium text-emerald-700'
-                        : 'rounded-full bg-amber-100 px-2.5 py-1 font-medium text-amber-700'
+                        ? 'rounded-full bg-green/10 px-2.5 py-1 font-medium text-green'
+                        : 'rounded-full bg-gold/25 px-2.5 py-1 font-medium text-ink'
                     }
                   >
                     GPS {result.checkIn.gpsOk ? '✓' : '✗'}
@@ -232,9 +231,9 @@ export default function CheckinDialog({
             ) : result.kind === 'flagged' ? (
               <>
                 <AlertTriangle className="h-14 w-14 text-amber-500" aria-hidden />
-                <p className="text-lg font-bold text-amber-700">চেক-ইন হয়েছে, তবে ফ্ল্যাগ হয়েছে</p>
-                <p className="text-sm text-neutral-600">{result.message}</p>
-                <ul className="w-full space-y-1 text-left" aria-label="ফ্ল্যাগের কারণসমূহ">
+                <p className="text-lg font-bold text-amber-700">Checked in — flagged for review</p>
+                <p className="text-sm text-body">{result.message}</p>
+                <ul className="w-full space-y-1 text-left" aria-label="Flag reasons">
                   {result.checkIn.flags.map((f, i) => (
                     <li key={i} className="flex items-start gap-1.5 rounded bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
                       <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -242,54 +241,57 @@ export default function CheckinDialog({
                     </li>
                   ))}
                 </ul>
-                <p className="text-xs text-neutral-500">শিক্ষক যাচাই করে সিদ্ধান্ত নেবেন।</p>
+                <p className="text-xs text-label">Your teacher will review and decide.</p>
               </>
             ) : result.kind === 'already' ? (
               <>
-                <CheckCircle2 className="h-14 w-14 text-emerald-600" aria-hidden />
-                <p className="text-lg font-bold text-emerald-700">ইতিমধ্যে রেকর্ড হয়েছে</p>
-                <p className="text-sm text-neutral-600">{result.message}</p>
+                <CheckCircle2 className="h-14 w-14 text-green" aria-hidden />
+                <p className="text-lg font-bold text-green">Already recorded</p>
+                <p className="text-sm text-body">{result.message}</p>
               </>
             ) : (
               <>
-                <XCircle className="h-14 w-14 text-rose-600" aria-hidden />
-                <p className="text-lg font-bold text-rose-700">চেক-ইন করা যায়নি</p>
-                <p className="text-sm text-neutral-600">{result.message}</p>
+                <XCircle className="h-14 w-14 text-rust" aria-hidden />
+                <p className="text-lg font-bold text-rust">Check-in failed</p>
+                <p className="text-sm text-body">{result.message}</p>
               </>
             )}
 
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="mt-2 w-full border-neutral-300 sm:w-auto"
+              className="mt-2 w-full border-border hover:bg-secondary sm:w-auto"
             >
-              বন্ধ করুন
+              Close
             </Button>
           </motion.div>
         ) : (
           /* --------------------------- FORM STEPS -------------------------- */
           <div className="flex flex-col gap-5">
             {/* Step 1 — location */}
-            <div className="rounded-xl border border-neutral-100 bg-neutral-50/60 p-4">
-              <p className="mb-2 text-sm font-semibold text-neutral-800">📍 লোকেশন যাচাই</p>
+            <div className="rounded-xl border border-border/60 bg-cream-soft/70 p-4">
+              <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-heading">
+                <MapPin className="h-4 w-4" aria-hidden />
+                Location check
+              </p>
               {locStatus === 'locating' ? (
-                <p className="flex items-center gap-2 text-sm text-neutral-500">
+                <p className="flex items-center gap-2 text-sm text-label">
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                  লোকেশন খোঁজা হচ্ছে…
+                  Finding your location…
                 </p>
               ) : locStatus === 'ok' ? (
-                <p className="flex items-start gap-2 text-sm font-medium text-emerald-700">
+                <p className="flex items-start gap-2 text-sm font-medium text-green">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                  লোকেশন পাওয়া গেছে
+                  Location found
                   {loc?.acc != null ? (
-                    <span className="font-normal text-neutral-500">(নির্ভুলতা ~{bn(Math.round(loc.acc))} মি)</span>
+                    <span className="font-normal text-label">(accuracy ~{Math.round(loc.acc)} m)</span>
                   ) : null}
                 </p>
               ) : (
                 <div className="flex flex-col gap-2">
                   <p className="flex items-start gap-2 text-sm text-amber-700">
                     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                    লোকেশন পাওয়া যায়নি — পারমিশন দিন বা তবুও চেক-ইন করতে পারেন (ফ্ল্যাগ হবে)
+                    Location unavailable — allow permission, or continue anyway (your check-in will be flagged)
                   </p>
                   <Button
                     type="button"
@@ -299,7 +301,7 @@ export default function CheckinDialog({
                     className="w-fit border-amber-300 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
                   >
                     <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-                    আবার চেষ্টা করুন
+                    Try again
                   </Button>
                 </div>
               )}
@@ -307,36 +309,39 @@ export default function CheckinDialog({
 
             {/* Step 2 — optional code */}
             <div className="flex flex-col gap-2">
-              <Label htmlFor="checkin-code">QR/PIN কোড (ঐচ্ছিক)</Label>
+              <Label htmlFor="checkin-code">QR / PIN code (optional)</Label>
               <Input
                 id="checkin-code"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                placeholder="৬-ডিজিটের কোড বা QR পেলোড"
+                placeholder="6-digit code or QR payload"
                 className="font-mono"
                 autoComplete="off"
               />
-              <p className="text-xs text-neutral-500">
-                প্রজেক্টরের QR স্ক্যান করলে বা ৬-ডিজিটের কোড লিখলে দ্রুত যাচাই হয়
+              <p className="text-xs text-label">
+                Scanning the projector QR or typing the 6-digit code speeds up verification
               </p>
             </div>
 
             {/* Step 3 — fingerprint */}
-            <div className="rounded-xl border border-neutral-100 bg-neutral-50/60 p-4">
-              <p className="mb-2 text-sm font-semibold text-neutral-800">🔐 ফিঙ্গারপ্রিন্ট যাচাই (ঐচ্ছিক)</p>
+            <div className="rounded-xl border border-border/60 bg-cream-soft/70 p-4">
+              <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-heading">
+                <Fingerprint className="h-4 w-4" aria-hidden />
+                Fingerprint verification (optional)
+              </p>
               {bio === 'ok' ? (
-                <p className="flex items-center gap-2 text-sm font-medium text-emerald-700">
+                <p className="flex items-center gap-2 text-sm font-medium text-green">
                   <CheckCircle2 className="h-4 w-4" aria-hidden />
-                  ✅ ফিঙ্গারপ্রিন্ট যাচাই হয়েছে
+                  Fingerprint verified
                 </p>
               ) : bio === 'verifying' ? (
-                <p className="flex items-center gap-2 text-sm text-neutral-500">
+                <p className="flex items-center gap-2 text-sm text-label">
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                  যাচাই চলছে — ডিভাইসে সেন্সর ব্যবহার করুন…
+                  Verifying — use your device sensor…
                 </p>
               ) : bio === 'unsupported' || bio === 'skipped' ? (
-                <p className="text-sm text-neutral-500">
-                  এই ডিভাইসে ফিঙ্গারপ্রিন্ট সাপোর্ট নেই — বাটন চেপেই চেক-ইন করুন
+                <p className="text-sm text-label">
+                  Fingerprint isn&apos;t available on this device — just tap Confirm attendance
                 </p>
               ) : (
                 <div className="flex flex-wrap gap-2">
@@ -345,19 +350,19 @@ export default function CheckinDialog({
                     variant="outline"
                     size="sm"
                     onClick={verifyFingerprint}
-                    className="border-emerald-300 font-medium text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                    className="border-border font-medium text-ink hover:bg-secondary"
                   >
                     <Fingerprint className="h-4 w-4" aria-hidden />
-                    ফিঙ্গারপ্রিন্ট দিয়ে যাচাই করুন
+                    Verify with fingerprint
                   </Button>
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
                     onClick={() => setBio('skipped')}
-                    className="text-neutral-500"
+                    className="text-label"
                   >
-                    এড়িয়ে যান
+                    Skip
                   </Button>
                 </div>
               )}
@@ -366,15 +371,15 @@ export default function CheckinDialog({
             <Button
               onClick={submit}
               disabled={submitting}
-              className="h-12 w-full bg-emerald-600 text-base font-bold text-white hover:bg-emerald-700"
+              className="btn-3d btn-ink h-12 w-full text-base font-bold"
             >
               {submitting ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-                  পাঠানো হচ্ছে…
+                  Sending…
                 </>
               ) : (
-                'উপস্থিতি নিশ্চিত করুন'
+                'Confirm attendance'
               )}
             </Button>
           </div>

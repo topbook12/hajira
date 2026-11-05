@@ -28,7 +28,6 @@ import {
   type TeacherSessionData,
 } from '@/lib/hajira-client'
 import {
-  bn,
   CheckStatusBadge,
   EmptyState,
   FlagList,
@@ -63,13 +62,12 @@ export default function TeacherLiveSession({
   const load = React.useCallback(async () => {
     try {
       const d = await api<TeacherSessionData>(`/api/sessions/${sessionId}`)
-      setSession(d.session)
-      setCheckIns(d.checkIns)
-      setRosterCount(d.rosterCount)
+      setSession(d.session ?? null)
+      setCheckIns(Array.isArray(d.checkIns) ? d.checkIns : [])
+      setRosterCount(Number.isFinite(d.rosterCount) ? d.rosterCount : 0)
     } catch (e) {
-      err('সেশন লোড করা যায়নি', e instanceof Error ? e.message : undefined)
+      err('Could not load the session', e instanceof Error ? e.message : undefined)
     }
-     
   }, [sessionId])
 
   /* initial load + realtime join */
@@ -86,7 +84,7 @@ export default function TeacherLiveSession({
       const row: LiveCheckInRow = {
         id: ci.id ?? `rt-${ci.studentId ?? Math.random()}`,
         studentId: ci.studentId ?? '',
-        studentName: ci.studentName ?? 'শিক্ষার্থী',
+        studentName: ci.studentName ?? 'Student',
         studentPhone: ci.studentPhone ?? '',
         status: ci.status ?? 'PRESENT',
         distanceM: ci.distanceM ?? null,
@@ -147,7 +145,7 @@ export default function TeacherLiveSession({
     if (!ended) expiredHandled.current = false
   }, [ended, session?.status, load])
 
-  const presentCount = checkIns.filter((c) => c.status === 'PRESENT').length
+  const presentCount = (checkIns ?? []).filter((c) => c.status === 'PRESENT').length
   const pct = rosterCount ? Math.round((presentCount / rosterCount) * 100) : 0
 
   const override = async (row: LiveCheckInRow, status: 'PRESENT' | 'ABSENT') => {
@@ -174,11 +172,9 @@ export default function TeacherLiveSession({
             : p
         )
       )
-      ok(
-        status === 'PRESENT' ? `${row.studentName} — উপস্থিত করা হয়েছে` : `${row.studentName} — অনুপস্থিত করা হয়েছে`
-      )
+      ok(status === 'PRESENT' ? `${row.studentName} — marked present` : `${row.studentName} — marked absent`)
     } catch (e) {
-      err('পরিবর্তন করা যায়নি', e instanceof Error ? e.message : undefined)
+      err('Could not update', e instanceof Error ? e.message : undefined)
     }
   }
 
@@ -191,13 +187,13 @@ export default function TeacherLiveSession({
       }>(`/api/sessions/${sessionId}/close`, { method: 'POST' })
       getSocket().emit('session:closed', { classId: res.session.classId, sessionId })
       ok(
-        `সেশন শেষ: ${bn(res.summary.presentCount)}/${bn(res.summary.rosterCount)} উপস্থিত`,
-        'রিপোর্ট থেকে বিস্তারিত দেখুন'
+        `Session closed: ${res.summary.presentCount}/${res.summary.rosterCount} present`,
+        'Open the report for details'
       )
       setQr(null)
       await load()
     } catch (e) {
-      err('সেশন বন্ধ করা যায়নি', e instanceof Error ? e.message : undefined)
+      err('Could not close the session', e instanceof Error ? e.message : undefined)
     } finally {
       setClosing(false)
     }
@@ -205,47 +201,48 @@ export default function TeacherLiveSession({
 
   if (!session) {
     return (
-      <div className="flex items-center justify-center py-20" role="status" aria-label="লোড হচ্ছে">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" aria-hidden />
+      <div className="flex items-center justify-center py-20" role="status" aria-label="Loading">
+        <Loader2 className="h-8 w-8 animate-spin text-ink" aria-hidden />
       </div>
     )
   }
 
   return (
-    <section aria-label="লাইভ উপস্থিতি সেশন" className="flex flex-col gap-5">
+    <section aria-label="Live attendance session" className="flex flex-col gap-5">
       <Button
         variant="ghost"
         onClick={onBack}
-        className="-ml-2 w-fit gap-2 text-neutral-600 hover:text-neutral-900"
+        className="-ml-2 w-fit gap-2 text-label hover:text-heading"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
-        ফিরে যান
+        Back
       </Button>
 
-      {/* Live header banner */}
-      <div className="rounded-2xl bg-gradient-to-br from-emerald-600 via-emerald-600 to-emerald-700 p-6 text-white shadow-md shadow-emerald-600/20">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+      {/* Live header banner — Peppercorn ink with gold glow */}
+      <div className="relative overflow-hidden rounded-2xl bg-ink p-6 text-cream shadow-lg shadow-ink/25">
+        <div className="pointer-events-none absolute -right-12 -top-20 h-52 w-52 rounded-full bg-gold/25 blur-3xl" aria-hidden />
+        <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-sm font-medium text-emerald-100">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-gold">
               {!ended ? (
                 <>
                   <PulsingDot color="red" />
-                  লাইভ উপস্থিতি চলছে
+                  Live attendance running
                 </>
               ) : (
-                'সেশন শেষ'
+                'Session ended'
               )}
             </div>
-            <h2 className="mt-1 truncate text-2xl font-bold">{session.className}</h2>
-            <p className="mt-0.5 text-sm text-emerald-100/90">
-              কোড: <span className="font-mono">{session.classCode}</span> • রেডিয়াস:{' '}
-              {bn(session.radiusM)} মি.{session.requireGps ? ' • GPS যাচাই চালু' : ''}
+            <h2 className="mt-1 truncate font-display text-2xl text-cream">{session.className}</h2>
+            <p className="mt-0.5 text-sm text-cream/70">
+              Code: <span className="font-mono">{session.classCode}</span> • Radius: {session.radiusM} m
+              {session.requireGps ? ' • GPS verification on' : ''}
             </p>
           </div>
           <div className="text-left sm:text-right" aria-live="polite">
-            <p className="text-xs font-medium uppercase tracking-wide text-emerald-100/80">অবশিষ্ট সময়</p>
-            <p className="font-mono text-4xl font-bold tabular-nums">
-              {ended ? <span className="text-2xl">সেশন শেষ</span> : mmss(remainingSec)}
+            <p className="text-xs font-medium uppercase tracking-[0.14em] text-cream/60">Time remaining</p>
+            <p className="font-mono text-4xl font-bold tabular-nums text-gold">
+              {ended ? <span className="text-2xl text-cream">Ended</span> : mmss(remainingSec)}
             </p>
           </div>
         </div>
@@ -253,25 +250,22 @@ export default function TeacherLiveSession({
 
       {/* Ended summary */}
       {ended ? (
-        <Card className="border-neutral-200 shadow-sm">
+        <Card className="card-3d">
           <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
-            <p className="text-sm font-medium text-neutral-500">সেশনের ফলাফল</p>
-            <p className="text-4xl font-extrabold text-emerald-700">
-              {bn(presentCount)}
-              <span className="text-xl font-semibold text-neutral-400"> / {bn(rosterCount)}</span>
+            <p className="text-sm font-medium text-label">Session result</p>
+            <p className="font-display text-5xl text-heading">
+              {presentCount}
+              <span className="text-xl text-label"> / {rosterCount}</span>
             </p>
-            <p className="text-sm text-neutral-600">শিক্ষার্থী উপস্থিত</p>
-            <Progress value={pct} className="h-2 max-w-xs [&>div]:bg-emerald-600" aria-label="উপস্থিতির হার" />
+            <p className="text-sm text-body">students present</p>
+            <Progress value={pct} className="h-2 max-w-xs [&>div]:bg-green" aria-label="Attendance rate" />
             <div className="mt-2 flex flex-wrap justify-center gap-2">
-              <Button
-                onClick={() => onViewReport(session.classId)}
-                className="bg-emerald-600 font-semibold text-white hover:bg-emerald-700"
-              >
+              <Button onClick={() => onViewReport(session.classId)} className="btn-3d btn-ink font-semibold">
                 <BarChart3 className="h-4 w-4" aria-hidden />
-                রিপোর্ট দেখুন
+                View report
               </Button>
-              <Button variant="outline" onClick={onBack} className="border-neutral-300">
-                ফিরে যান
+              <Button variant="outline" onClick={onBack} className="border-border hover:bg-secondary">
+                Back
               </Button>
             </div>
           </CardContent>
@@ -280,26 +274,26 @@ export default function TeacherLiveSession({
 
       {/* QR + PIN (hidden when ended) */}
       {!ended && qr ? (
-        <Card className="border-emerald-200 shadow-sm">
-          <CardContent className="flex flex-col items-center gap-3 p-6">
-            <p className="text-sm font-medium text-neutral-600">
-              প্রজেক্টরে দেখান — শিক্ষার্থীরা স্ক্যান করে দ্রুত চেক-ইন করবে
+        <Card className="card-3d card-inner-glow corner-glow">
+          <CardContent className="relative flex flex-col items-center gap-3 p-6">
+            <p className="text-sm font-medium text-body">
+              Show on the projector — students scan to check in instantly
             </p>
-            <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
+            <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
               <QRCode value={qr.payload} size={220} />
             </div>
-            <p className="mt-1 text-sm text-neutral-500">অথবা এই কোড লিখুন:</p>
-            <p className="font-mono text-3xl font-bold tracking-widest text-emerald-700" aria-label="PIN কোড">
+            <p className="mt-1 text-sm text-label">or type this code:</p>
+            <p className="font-mono text-3xl font-bold tracking-[0.25em] text-ink" aria-label="PIN code">
               {qr.pin}
             </p>
             <div className="w-full max-w-[220px]">
               <Progress
                 value={(qr.expiresInSec / 30) * 100}
-                className="h-1.5 [&>div]:bg-emerald-600"
-                aria-label="কোডের বৈধতা"
+                className="h-1.5 [&>div]:bg-gold-deep"
+                aria-label="Code validity"
               />
-              <p className="mt-1 text-center text-xs text-neutral-500">
-                নতুন কোড আসবে {bn(qr.expiresInSec)} সেকেন্ডে
+              <p className="mt-1 text-center text-xs text-label">
+                New code in {qr.expiresInSec} seconds
               </p>
             </div>
           </CardContent>
@@ -307,34 +301,34 @@ export default function TeacherLiveSession({
       ) : null}
 
       {/* Stats */}
-      <Card className="border-neutral-200 shadow-sm">
-        <CardContent className="p-4">
+      <Card className="card-3d stat-card-premium">
+        <CardContent className="relative p-4">
           <div className="flex items-center justify-between text-sm">
-            <span className="font-medium text-neutral-700">
-              উপস্থিত{' '}
-              <span className="font-bold text-emerald-700">
-                {bn(presentCount)}/{bn(rosterCount)}
+            <span className="font-medium text-body">
+              Present{' '}
+              <span className="font-bold text-green">
+                {presentCount}/{rosterCount}
               </span>
             </span>
-            <span className="font-mono font-semibold text-neutral-600">{bn(pct)}%</span>
+            <span className="font-mono font-semibold text-body">{pct}%</span>
           </div>
-          <Progress value={pct} className="mt-2 h-2 [&>div]:bg-emerald-600" aria-label="উপস্থিতির হার" />
+          <Progress value={pct} className="mt-2 h-2 [&>div]:bg-green" aria-label="Attendance rate" />
         </CardContent>
       </Card>
 
       {/* Live check-in list */}
-      <Card className="border-neutral-200 shadow-sm">
+      <Card className="card-3d">
         <CardContent className="flex flex-col gap-3 p-4 sm:p-6">
-          <h3 className="flex items-center gap-2 font-semibold text-neutral-900">
-            <ListChecks className="h-4 w-4 text-emerald-600" aria-hidden />
-            লাইভ চেক-ইন তালিকা
+          <h3 className="flex items-center gap-2 font-semibold text-heading">
+            <ListChecks className="h-4 w-4 text-ink" aria-hidden />
+            Live check-ins
           </h3>
 
           {checkIns.length === 0 ? (
             <EmptyState
               icon={ListChecks}
-              title="এখনো কেউ চেক-ইন করেনি"
-              hint="শিক্ষার্থীরা চেক-ইন করলেই এখানে সাথে সাথে দেখা যাবে।"
+              title="No check-ins yet"
+              hint="Check-ins will appear here in real time."
             />
           ) : (
             <ScrollList>
@@ -345,39 +339,39 @@ export default function TeacherLiveSession({
                     initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.25 }}
-                    className="flex items-start justify-between gap-3 rounded-lg border border-neutral-100 bg-white p-3"
+                    className="flex items-start justify-between gap-3 rounded-lg border border-border/60 bg-cream-soft/60 p-3"
                   >
                     <div className="flex min-w-0 items-start gap-3">
-                      <Avatar className="h-9 w-9 border border-emerald-100">
-                        <AvatarFallback className="bg-emerald-100 text-sm font-bold text-emerald-700">
+                      <Avatar className="h-9 w-9 border border-gold/30">
+                        <AvatarFallback className="bg-gold/25 text-sm font-bold text-ink">
                           {row.studentName.trim().charAt(0) || '?'}
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-neutral-900">
+                        <p className="truncate text-sm font-semibold text-heading">
                           {row.studentName}
                           {row.bioVerified ? (
                             <Fingerprint
-                              className="ml-1.5 inline h-4 w-4 text-emerald-600"
-                              aria-label="ফিঙ্গারপ্রিন্ট যাচাইকৃত"
+                              className="ml-1.5 inline h-4 w-4 text-green"
+                              aria-label="Fingerprint verified"
                             />
                           ) : null}
                         </p>
-                        <p className="font-mono text-xs text-neutral-400">{row.studentPhone}</p>
+                        <p className="font-mono text-xs text-label">{row.studentPhone}</p>
                         <div className="mt-1 flex flex-wrap items-center gap-1.5">
                           <CheckStatusBadge status={row.status} />
                           <MethodBadge method={row.method} />
                           {row.distanceM != null ? (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs text-neutral-600">
+                            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-xs text-body">
                               <MapPin className="h-3 w-3" aria-hidden />
-                              {bn(Math.round(row.distanceM))} মি.
+                              {Math.round(row.distanceM)} m
                             </span>
                           ) : null}
                           <span
                             className={
                               row.gpsOk
-                                ? 'inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700'
-                                : 'inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700'
+                                ? 'inline-flex items-center gap-1 rounded-full bg-green/10 px-2 py-0.5 text-xs font-medium text-green'
+                                : 'inline-flex items-center gap-1 rounded-full bg-gold/25 px-2 py-0.5 text-xs font-medium text-ink'
                             }
                           >
                             {row.gpsOk ? 'GPS ✓' : 'GPS ✗'}
@@ -393,9 +387,9 @@ export default function TeacherLiveSession({
                         size="icon"
                         onClick={() => override(row, 'PRESENT')}
                         disabled={ended}
-                        aria-label={`${row.studentName} — উপস্থিত করুন`}
-                        title="উপস্থিত করুন"
-                        className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+                        aria-label={`${row.studentName} — mark present`}
+                        title="Mark present"
+                        className="text-green hover:bg-green/10 hover:text-green"
                       >
                         <Check className="h-4 w-4" aria-hidden />
                       </Button>
@@ -404,9 +398,9 @@ export default function TeacherLiveSession({
                         size="icon"
                         onClick={() => override(row, 'ABSENT')}
                         disabled={ended}
-                        aria-label={`${row.studentName} — অনুপস্থিত করুন`}
-                        title="অনুপস্থিত করুন"
-                        className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                        aria-label={`${row.studentName} — mark absent`}
+                        title="Mark absent"
+                        className="text-rust hover:bg-rust/10 hover:text-rust"
                       >
                         <X className="h-4 w-4" aria-hidden />
                       </Button>
@@ -425,10 +419,10 @@ export default function TeacherLiveSession({
           onClick={closeSession}
           disabled={closing}
           variant="outline"
-          className="w-full border-rose-300 font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700 sm:w-fit sm:self-center"
+          className="w-full border-rust/40 font-semibold text-rust hover:bg-rust/10 hover:text-rust sm:w-fit sm:self-center"
         >
           {closing ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Square className="h-4 w-4" aria-hidden />}
-          সেশন শেষ করুন
+          End session
         </Button>
       ) : null}
     </section>

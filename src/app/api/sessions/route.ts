@@ -11,7 +11,7 @@ import {
 export async function POST(req: NextRequest) {
   const user = await requireUser(req)
   if (!user) return unauthorized()
-  if (user.role !== 'TEACHER') return badRequest('শুধু শিক্ষক সেশন শুরু করতে পারেন')
+  if (user.role !== 'TEACHER') return badRequest('Only teachers can start sessions')
 
   const body = await req.json().catch(() => null)
   const classId = String(body?.classId || '')
@@ -22,21 +22,21 @@ export async function POST(req: NextRequest) {
   const lng = body?.lng == null ? null : Number(body.lng)
 
   const cls = await db.class.findUnique({ where: { id: classId || 'none' } })
-  if (!cls) return badRequest('ক্লাস পাওয়া যায়নি')
-  if (cls.teacherId !== user.id) return badRequest('এই ক্লাসের শিক্ষক আপনি নন')
+  if (!cls) return badRequest('Class not found')
+  if (cls.teacherId !== user.id) return badRequest('You are not the teacher of this class')
 
   // prevent duplicate active session for same class
   const active = await db.session.findFirst({
     where: { classId, status: 'ACTIVE', endsAt: { gt: new Date() } },
   })
   if (active) {
-    return NextResponse.json({ session: active, warning: 'ইতিমধ্যে একটি সক্রিয় সেশন আছে' })
+    return NextResponse.json({ session: active, warning: 'A session is already active' })
   }
 
   let warning: string | undefined
   if (requireGps && (lat == null || lng == null)) {
     requireGps = false
-    warning = 'লোকেশন পাওয়া যায়নি — GPS যাচাই ছাড়া সেশন চালু হলো'
+    warning = 'Location unavailable — session started without GPS verification'
   }
 
   const endsAt = new Date(Date.now() + durationSec * 1000)

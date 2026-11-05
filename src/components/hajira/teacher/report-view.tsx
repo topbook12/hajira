@@ -24,7 +24,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { api, type ReportData } from '@/lib/hajira-client'
-import { bn, EmptyState, useHajiraToasts } from '@/components/hajira/shared'
+import { EmptyState, useHajiraToasts } from '@/components/hajira/shared'
 
 export default function TeacherReportView({
   classId,
@@ -44,11 +44,10 @@ export default function TeacherReportView({
       const d = await api<ReportData>(`/api/reports/class/${classId}?threshold=${threshold}`)
       setData(d)
     } catch (e) {
-      err('রিপোর্ট লোড করা যায়নি', e instanceof Error ? e.message : undefined)
+      err('Could not load the report', e instanceof Error ? e.message : undefined)
     } finally {
       setLoading(false)
     }
-     
   }, [classId, threshold])
 
   React.useEffect(() => {
@@ -57,7 +56,7 @@ export default function TeacherReportView({
 
   const downloadCsv = () => {
     if (!data) return
-    const head = ['নাম', 'ফোন', 'উপস্থিত', 'ফ্ল্যাগড', 'অনুপস্থিত', 'শতকরা', 'যোগ্যতা']
+    const head = ['Name', 'Phone', 'Present', 'Flagged', 'Absent', 'Percentage', 'Eligibility']
     const lines = [head.join(',')]
     for (const r of data.rows) {
       const cells = [
@@ -67,7 +66,7 @@ export default function TeacherReportView({
         String(r.flagged),
         String(r.absent),
         `${r.pct}%`,
-        r.eligible ? 'যোগ্য' : 'ঝুঁকিতে',
+        r.eligible ? 'Eligible' : 'At risk',
       ]
       lines.push(cells.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))
     }
@@ -83,44 +82,46 @@ export default function TeacherReportView({
   }
 
   return (
-    <section aria-label="উপস্থিতি রিপোর্ট" className="flex flex-col gap-5">
+    <section aria-label="Attendance report" className="flex flex-col gap-5">
       <Button
         variant="ghost"
         onClick={onBack}
-        className="-ml-2 w-fit gap-2 text-neutral-600 hover:text-neutral-900"
+        className="-ml-2 w-fit gap-2 text-label hover:text-heading"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
-        ফিরে যান
+        Back
       </Button>
 
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-neutral-900">
-            {data ? data.cls.name : 'রিপোর্ট'}
+          <h2 className="font-display text-2xl text-heading">
+            {data ? data.cls.name : 'Report'}
           </h2>
-          <p className="mt-0.5 text-sm text-neutral-500">
-            {data ? `মোট সেশন: ${bn(data.totalSessions)} • যোগ্যতার ন্যূনতম সীমা: ${bn(threshold)}%` : 'লোড হচ্ছে…'}
+          <p className="mt-0.5 text-sm text-label">
+            {data
+              ? `Total sessions: ${data.totalSessions} • Eligibility threshold: ${threshold}%`
+              : 'Loading…'}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Select value={threshold} onValueChange={setThreshold}>
-            <SelectTrigger className="w-[130px]" aria-label="যোগ্যতার সীমা">
+            <SelectTrigger className="w-[130px] bg-card" aria-label="Eligibility threshold">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="50">৫০%</SelectItem>
-              <SelectItem value="60">৬০%</SelectItem>
-              <SelectItem value="75">৭৫%</SelectItem>
+              <SelectItem value="50">50%</SelectItem>
+              <SelectItem value="60">60%</SelectItem>
+              <SelectItem value="75">75%</SelectItem>
             </SelectContent>
           </Select>
           <Button
             onClick={downloadCsv}
             disabled={!data || data.rows.length === 0}
             variant="outline"
-            className="border-emerald-300 font-semibold text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+            className="border-border font-semibold text-ink hover:bg-secondary"
           >
             <Download className="h-4 w-4" aria-hidden />
-            CSV ডাউনলোড
+            Export CSV
           </Button>
         </div>
       </div>
@@ -130,71 +131,77 @@ export default function TeacherReportView({
       ) : !data || data.rows.length === 0 ? (
         <EmptyState
           icon={FileBarChart2}
-          title="এই ক্লাসে এখনো কোনো রিপোর্ট নেই"
-          hint="সেশন শুরু করে উপস্থিতি নিলে এখানে প্রতি-শিক্ষার্থী রিপোর্ট দেখা যাবে।"
+          title="No report for this class yet"
+          hint="Run a session and the per-student report will appear here."
         />
       ) : (
-        <Card className="border-neutral-200 shadow-sm">
+        <Card className="card-3d">
           <CardContent className="p-4 sm:p-6">
             {loading ? (
               <div className="flex items-center justify-center py-10" role="status">
-                <Loader2 className="h-6 w-6 animate-spin text-emerald-600" aria-hidden />
+                <Loader2 className="h-6 w-6 animate-spin text-ink" aria-hidden />
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-neutral-200">
-                      <TableHead className="min-w-[140px]">নাম</TableHead>
-                      <TableHead>ফোন</TableHead>
-                      <TableHead className="text-center">উপস্থিত</TableHead>
-                      <TableHead className="text-center">ফ্ল্যাগড</TableHead>
-                      <TableHead className="text-center">অনুপস্থিত</TableHead>
-                      <TableHead className="min-w-[150px]">শতকরা</TableHead>
-                      <TableHead className="text-center">পরীক্ষার যোগ্যতা</TableHead>
+                    <TableRow className="border-border">
+                      <TableHead className="min-w-[140px]">Name</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead className="text-center">Present</TableHead>
+                      <TableHead className="text-center">Flagged</TableHead>
+                      <TableHead className="text-center">Absent</TableHead>
+                      <TableHead className="min-w-[150px]">Attendance</TableHead>
+                      <TableHead className="text-center">Exam eligibility</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {data.rows.map((r) => (
-                      <TableRow key={r.studentId} className="border-neutral-100">
-                        <TableCell className="font-medium text-neutral-900">{r.name}</TableCell>
-                        <TableCell className="font-mono text-sm text-neutral-500">{r.phone}</TableCell>
-                        <TableCell className="text-center font-semibold text-emerald-700">
-                          {bn(r.present)}
+                      <TableRow key={r.studentId} className="border-border/60">
+                        <TableCell className="font-medium text-heading">{r.name}</TableCell>
+                        <TableCell className="font-mono text-sm text-label">{r.phone}</TableCell>
+                        <TableCell className="text-center font-semibold text-green">
+                          {r.present}
                         </TableCell>
                         <TableCell className="text-center font-semibold text-amber-600">
-                          {bn(r.flagged)}
+                          {r.flagged}
                         </TableCell>
-                        <TableCell className="text-center font-semibold text-rose-600">
-                          {bn(r.absent)}
+                        <TableCell className="text-center font-semibold text-rust">
+                          {r.absent}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <div className="w-20">
-                              <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-100">
+                              <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
                                 <div
-                                  className={r.pct >= data.threshold ? 'h-full rounded-full bg-emerald-600' : 'h-full rounded-full bg-amber-500'}
+                                  className={
+                                    r.pct >= data.threshold
+                                      ? 'h-full rounded-full bg-green'
+                                      : 'h-full rounded-full bg-gold-deep'
+                                  }
                                   style={{ width: `${Math.min(100, r.pct)}%` }}
                                 />
                               </div>
                             </div>
-                            <span className="font-mono text-sm font-semibold text-neutral-700">
-                              {bn(r.pct)}%
+                            <span className="font-mono text-sm font-semibold text-body">
+                              {r.pct}%
                             </span>
                           </div>
                         </TableCell>
                         <TableCell className="text-center">
                           {r.eligible ? (
-                            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">যোগ্য</Badge>
+                            <Badge className="border-none bg-green/10 text-green hover:bg-green/10">
+                              Eligible
+                            </Badge>
                           ) : (
                             <Badge
                               className={
                                 r.pct >= Math.max(0, data.threshold - 20)
-                                  ? 'bg-amber-100 text-amber-800 hover:bg-amber-100'
-                                  : 'bg-rose-100 text-rose-700 hover:bg-rose-100'
+                                  ? 'border-none bg-gold/25 text-ink hover:bg-gold/25'
+                                  : 'border-none bg-rust/10 text-rust hover:bg-rust/10'
                               }
                             >
-                              ঝুঁকিতে
+                              At risk
                             </Badge>
                           )}
                         </TableCell>

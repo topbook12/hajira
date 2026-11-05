@@ -9,30 +9,23 @@ import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 
-/* --------------------------- Bengali number helpers ---------------------- */
+/* ------------------------------ format helpers --------------------------- */
 
-const BN_DIGITS = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯']
-
-/** Convert latin digits to Bengali digits */
-export function bn(value: number | string): string {
-  return String(value).replace(/[0-9]/g, (d) => BN_DIGITS[Number(d)] ?? d)
-}
-
-/** mm:ss countdown in Bengali digits */
+/** mm:ss countdown, latin digits */
 export function mmss(totalSec: number): string {
   const s = Math.max(0, Math.floor(totalSec))
   const m = Math.floor(s / 60)
   const r = s % 60
-  return bn(`${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`)
+  return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`
 }
 
-/** Bengali date-time */
-export function bnDateTime(input: string | Date): string {
+/** English date-time, e.g. "Nov 5, 1:21 PM" */
+export function fmtDateTime(input: string | Date): string {
   const d = typeof input === 'string' ? new Date(input) : input
   try {
-    return d.toLocaleString('bn-BD', {
+    return d.toLocaleString('en-US', {
       day: 'numeric',
-      month: 'long',
+      month: 'short',
       hour: 'numeric',
       minute: '2-digit',
     })
@@ -71,7 +64,7 @@ export function useHajiraToasts() {
   )
   const err = React.useCallback(
     (title?: string, description?: string) =>
-      toast({ title: title ?? 'সমস্যা হয়েছে', description, variant: 'destructive' }),
+      toast({ title: title ?? 'Something went wrong', description, variant: 'destructive' }),
     [toast]
   )
   return { toast, ok, err }
@@ -79,9 +72,9 @@ export function useHajiraToasts() {
 
 /* ------------------------------ tiny components --------------------------- */
 
-/** Pulsing live dot (red for live sessions, emerald for active classes) */
-export function PulsingDot({ color = 'red' }: { color?: 'red' | 'emerald' }) {
-  const bg = color === 'red' ? 'bg-red-500' : 'bg-emerald-500'
+/** Pulsing live dot (red for live banners, green for active items) */
+export function PulsingDot({ color = 'red' }: { color?: 'red' | 'green' }) {
+  const bg = color === 'red' ? 'bg-red-500' : 'bg-green-light'
   return (
     <span className="relative inline-flex h-2.5 w-2.5 shrink-0" aria-hidden>
       <span className={cn('absolute inline-flex h-full w-full animate-ping rounded-full opacity-75', bg)} />
@@ -91,58 +84,58 @@ export function PulsingDot({ color = 'red' }: { color?: 'red' | 'emerald' }) {
 }
 
 const METHOD_LABEL: Record<string, string> = {
-  QR: 'QR স্ক্যান',
-  PIN: 'কোড',
-  BUTTON: 'বাটন',
-  MANUAL: 'ম্যানুয়াল',
+  QR: 'QR scan',
+  PIN: 'Code',
+  BUTTON: 'Button',
+  MANUAL: 'Manual',
 }
 
 export function methodLabel(method?: string | null): string {
-  return METHOD_LABEL[method ?? ''] ?? (method || 'বাটন')
+  return METHOD_LABEL[method ?? ''] ?? (method || 'Button')
 }
 
 export function MethodBadge({ method }: { method?: string | null }) {
   return (
-    <Badge variant="outline" className="border-neutral-200 bg-neutral-50 font-normal text-neutral-600">
+    <Badge variant="outline" className="border-border bg-secondary font-normal text-label">
       {methodLabel(method)}
     </Badge>
   )
 }
 
-/** PRESENT / FLAGGED / ABSENT badge (emerald / amber / rose) */
+/** PRESENT / FLAGGED / ABSENT badge — green tint / gold / rust */
 export function CheckStatusBadge({ status, title }: { status: string; title?: string }) {
   if (status === 'PRESENT')
     return (
-      <Badge title={title} className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-        উপস্থিত
+      <Badge title={title} className="bg-green/10 text-green hover:bg-green/10">
+        Present
       </Badge>
     )
   if (status === 'FLAGGED')
     return (
-      <Badge title={title} className="bg-amber-100 text-amber-800 hover:bg-amber-100">
-        ফ্ল্যাগড
+      <Badge title={title} className="bg-gold/25 text-ink hover:bg-gold/25">
+        Flagged
       </Badge>
     )
   return (
-    <Badge title={title} className="bg-rose-100 text-rose-700 hover:bg-rose-100">
-      অনুপস্থিত
+    <Badge title={title} className="bg-rust/10 text-rust hover:bg-rust/10">
+      Absent
     </Badge>
   )
 }
 
-/** Session status badge — ACTIVE (and not yet ended) shows pulsing "চলছে" */
+/** Session status badge — ACTIVE (and not yet ended) shows pulsing "Live" */
 export function SessionStatusBadge({ status, endsAt }: { status: string; endsAt?: string | Date }) {
   const active = status === 'ACTIVE' && (!endsAt || new Date(endsAt).getTime() > Date.now())
   if (active)
     return (
-      <Badge className="gap-1.5 bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-        <PulsingDot color="emerald" />
-        চলছে
+      <Badge className="gap-1.5 bg-green/10 text-green hover:bg-green/10">
+        <PulsingDot color="green" />
+        Live
       </Badge>
     )
   return (
-    <Badge variant="secondary" className="bg-neutral-100 text-neutral-600 hover:bg-neutral-100">
-      শেষ
+    <Badge variant="secondary" className="bg-secondary text-label hover:bg-secondary">
+      Ended
     </Badge>
   )
 }
@@ -153,15 +146,15 @@ export function CodeChip({ code, className }: { code: string; className?: string
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(code)
-      ok('কোড কপি হয়েছে', code)
+      ok('Code copied', code)
     } catch {
-      err('কপি করা যায়নি', 'ম্যানুয়ালি কোডটি সিলেক্ট করে কপি করুন')
+      err('Copy failed', 'Select the code manually and copy it')
     }
   }
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 py-0.5 pl-2.5 pr-1 font-mono text-xs font-semibold tracking-wide text-neutral-700',
+        'inline-flex items-center gap-1 rounded-full border border-border bg-secondary py-0.5 pl-2.5 pr-1 font-mono text-xs font-semibold tracking-wide text-ink',
         className
       )}
     >
@@ -169,9 +162,9 @@ export function CodeChip({ code, className }: { code: string; className?: string
       <button
         type="button"
         onClick={copy}
-        aria-label="কোড কপি"
-        title="কোড কপি"
-        className="rounded-full p-1 text-neutral-500 transition-colors hover:bg-neutral-200 hover:text-neutral-800"
+        aria-label="Copy code"
+        title="Copy code"
+        className="rounded-full p-1 text-label transition-colors hover:bg-border hover:text-heading"
       >
         <Copy className="h-3 w-3" aria-hidden />
       </button>
@@ -179,7 +172,7 @@ export function CodeChip({ code, className }: { code: string; className?: string
   )
 }
 
-/** Empty state with icon + Bengali text */
+/** Empty state with icon + hint */
 export function EmptyState({
   icon: Icon,
   title,
@@ -194,13 +187,13 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-neutral-200 bg-neutral-50/60 px-6 py-10 text-center',
+        'flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-cream-soft/70 px-6 py-10 text-center',
         className
       )}
     >
-      <Icon className="h-10 w-10 text-neutral-300" aria-hidden />
-      <p className="text-sm font-medium text-neutral-700">{title}</p>
-      {hint ? <p className="max-w-sm text-xs text-neutral-500">{hint}</p> : null}
+      <Icon className="h-10 w-10 text-border" aria-hidden />
+      <p className="text-sm font-medium text-body">{title}</p>
+      {hint ? <p className="max-w-sm text-xs text-label">{hint}</p> : null}
     </div>
   )
 }
@@ -210,7 +203,7 @@ export function ScrollList({ children, className }: { children: React.ReactNode;
   return (
     <div
       className={cn(
-        'max-h-96 overflow-y-auto pr-1 [scrollbar-width:thin] [scrollbar-color:#d4d4d8_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-neutral-300 [&::-webkit-scrollbar-thumb:hover]:bg-neutral-400',
+        'max-h-96 overflow-y-auto pr-1 [scrollbar-width:thin] [scrollbar-color:#DAD5CC_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb:hover]:bg-label',
         className
       )}
     >

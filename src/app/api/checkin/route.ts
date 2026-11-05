@@ -11,7 +11,7 @@ import { badRequest, haversineM, requireUser, unauthorized, verifyCode } from '@
 export async function POST(req: NextRequest) {
   const user = await requireUser(req)
   if (!user) return unauthorized()
-  if (user.role !== 'STUDENT') return badRequest('শুধু শিক্ষার্থী চেক-ইন করতে পারে')
+  if (user.role !== 'STUDENT') return badRequest('Only students can check in')
 
   const body = await req.json().catch(() => null)
   const sessionId = String(body?.sessionId || '')
@@ -21,23 +21,23 @@ export async function POST(req: NextRequest) {
   const lat = body?.lat == null ? null : Number(body.lat)
   const lng = body?.lng == null ? null : Number(body.lng)
 
-  if (!sessionId) return badRequest('সেশন আইডি দরকার')
-  if (!deviceId) return badRequest('ডিভাইস আইডি দরকার')
+  if (!sessionId) return badRequest('Session ID required')
+  if (!deviceId) return badRequest('Device ID required')
 
   const session = await db.session.findUnique({
     where: { id: sessionId },
     include: { class: { select: { name: true } } },
   })
-  if (!session) return badRequest('সেশন পাওয়া যায়নি')
+  if (!session) return badRequest('Session not found')
 
   const member = await db.membership.findUnique({
     where: { classId_studentId: { classId: session.classId, studentId: user.id } },
   })
-  if (!member) return badRequest('আপনি এই ক্লাসের শিক্ষার্থী নন')
+  if (!member) return badRequest('You are not a student of this class')
 
   const now = new Date()
   if (session.status !== 'ACTIVE' || session.endsAt <= now) {
-    return NextResponse.json({ error: 'সেশনের সময় শেষ — উপস্থিতি নেওয়া হয়ে গেছে' }, { status: 410 })
+    return NextResponse.json({ error: 'The session window has ended — attendance is closed' }, { status: 410 })
   }
 
   const existing = await db.checkIn.findUnique({
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   })
   if (existing) {
     return NextResponse.json(
-      { already: true, checkIn: existing, message: 'আপনার উপস্থিতি আগেই রেকর্ড হয়েছে ✅' },
+      { already: true, checkIn: existing, message: 'Your attendance was already recorded' },
       { status: 200 }
     )
   }
@@ -61,24 +61,24 @@ export async function POST(req: NextRequest) {
     if (v.ok) {
       method = v.method
     } else {
-      flags.push('কোড যাচাই ব্যর্থ (ভুল বা পুরনো)')
+      flags.push('Code verification failed (wrong or expired)')
     }
   }
 
   // Proof 2 (WHERE): GPS geofence
   if (session.requireGps) {
     if (lat == null || lng == null) {
-      flags.push('GPS পাওয়া যায়নি (পারমিশন দিন)')
+      flags.push('GPS unavailable (grant location permission)')
     } else {
       distanceM = Math.round(haversineM(session.lat!, session.lng!, lat, lng) * 10) / 10
       gpsOk = distanceM <= session.radiusM
-      if (!gpsOk) flags.push(`ক্লাসরুমের রেঞ্জের বাইরে (~${Math.round(distanceM)} মিটার)`)
+      if (!gpsOk) flags.push(`Outside classroom range (~${Math.round(distanceM)} m)`)
     }
   }
 
   // Proof 1 (WHO): device binding — one device per student
   if (user.deviceId && user.deviceId !== deviceId) {
-    flags.push('নতুন/ভিন্ন ডিভাইস থেকে চেক-ইন')
+    flags.push('Check-in from a new/different device')
   } else if (!user.deviceId) {
     await db.user.update({ where: { id: user.id }, data: { deviceId } })
   }
@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
     className: session.class.name,
     message:
       status === 'PRESENT'
-        ? 'উপস্থিতি সফলভাবে রেকর্ড হয়েছে ✅'
-        : 'চেক-ইন হয়েছে, তবে কিছু বিষয় যাচাইয়ের জন্য ফ্ল্যাগ হয়েছে ⚠️',
+        ? 'Attendance recorded successfully'
+        : 'Checked in, but some items were flagged for review',
   })
 }

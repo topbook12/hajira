@@ -15,10 +15,10 @@ export async function requireUser(req: NextRequest) {
 }
 
 export function unauthorized() {
-  return NextResponse.json({ error: 'লগইন প্রয়োজন' }, { status: 401 })
+  return NextResponse.json({ error: 'Sign in required' }, { status: 401 })
 }
 
-export function forbidden(msg = 'অনুমতি নেই') {
+export function forbidden(msg = 'Not allowed') {
   return NextResponse.json({ error: msg }, { status: 403 })
 }
 

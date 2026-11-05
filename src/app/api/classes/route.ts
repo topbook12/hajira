@@ -6,11 +6,11 @@ import { badRequest, randomClassCode, requireUser, unauthorized } from '@/lib/ha
 export async function POST(req: NextRequest) {
   const user = await requireUser(req)
   if (!user) return unauthorized()
-  if (user.role !== 'TEACHER') return badRequest('শুধু শিক্ষক ক্লাস তৈরি করতে পারেন')
+  if (user.role !== 'TEACHER') return badRequest('Only teachers can create classes')
 
   const body = await req.json().catch(() => null)
   const name = String(body?.name || '').trim()
-  if (!name) return badRequest('ক্লাসের নাম দিন')
+  if (!name) return badRequest('Provide a class name')
 
   let code = randomClassCode()
   for (let i = 0; i < 5; i++) {

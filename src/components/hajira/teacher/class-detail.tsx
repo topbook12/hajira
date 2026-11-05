@@ -37,8 +37,7 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { api, getSocket, getPosition, type TeacherClassDetailData } from '@/lib/hajira-client'
 import {
-  bn,
-  bnDateTime,
+  fmtDateTime,
   CodeChip,
   EmptyState,
   ScrollList,
@@ -75,11 +74,10 @@ export default function TeacherClassDetail({
       const d = await api<TeacherClassDetailData>(`/api/classes/${classId}`)
       setData(d)
     } catch (e) {
-      err('ক্লাস লোড করা যায়নি', e instanceof Error ? e.message : undefined)
+      err('Could not load the class', e instanceof Error ? e.message : undefined)
     } finally {
       setLoading(false)
     }
-     
   }, [classId])
 
   React.useEffect(() => {
@@ -104,12 +102,12 @@ export default function TeacherClassDetail({
           lng: pos?.lng,
         },
       })
-      if (res.warning) ok('সতর্কতা', res.warning)
+      if (res.warning) ok('Warning', res.warning)
       getSocket().emit('session:started', { classId, session: res.session })
-      ok('সেশন চালু হয়েছে!', 'শিক্ষার্থীরা এখন উপস্থিতি দিতে পারবে')
+      ok('Session is live!', 'Students can now check in')
       onLive(res.session.id)
     } catch (e) {
-      err('সেশন শুরু করা যায়নি', e instanceof Error ? e.message : undefined)
+      err('Could not start the session', e instanceof Error ? e.message : undefined)
     } finally {
       setStarting(false)
     }
@@ -128,7 +126,7 @@ export default function TeacherClassDetail({
       .filter((s) => s.name && s.phone)
 
     if (students.length === 0) {
-      err('অন্তত একটি সারি দিন', 'ফরম্যাট: নাম,ফোন — যেমন: রাহিম উদ্দিন,01712345678')
+      err('Add at least one row', 'Format: name,phone — e.g. Rahim Uddin,01712345678')
       return
     }
 
@@ -139,14 +137,14 @@ export default function TeacherClassDetail({
         { method: 'POST', body: { students } }
       )
       ok(
-        `${bn(res.added)} জন যোগ হয়েছে${res.skipped ? `, ${bn(res.skipped)} জন বাদ` : ''}`,
-        res.skipped ? 'আগেই যুক্ত বা ভুল ফরম্যাটের সারিগুলো বাদ দেওয়া হয়েছে' : undefined
+        `${res.added} added${res.skipped ? `, ${res.skipped} skipped` : ''}`,
+        res.skipped ? 'Rows that were duplicates or malformed were skipped' : undefined
       )
       setStudentsText('')
       setStudentsOpen(false)
       await load()
     } catch (e) {
-      err('স্টুডেন্ট যোগ করা যায়নি', e instanceof Error ? e.message : undefined)
+      err('Could not add students', e instanceof Error ? e.message : undefined)
     } finally {
       setAdding(false)
     }
@@ -169,8 +167,8 @@ export default function TeacherClassDetail({
     return (
       <EmptyState
         icon={Radio}
-        title="ক্লাসটি দেখা যাচ্ছে না"
-        hint="পেজটি রিফ্রেশ করে আবার চেষ্টা করুন।"
+        title="This class is unavailable"
+        hint="Refresh the page and try again."
       />
     )
   }
@@ -180,52 +178,52 @@ export default function TeacherClassDetail({
       <Button
         variant="ghost"
         onClick={onBack}
-        className="w-fit -ml-2 gap-2 text-neutral-600 hover:text-neutral-900"
+        className="-ml-2 w-fit gap-2 text-label hover:text-heading"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
-        ক্লাসসমূহ
+        All classes
       </Button>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-neutral-900">{data.cls.name}</h2>
-          <p className="mt-0.5 text-sm text-neutral-500">
-            শিক্ষক: {data.cls.teacherName} • {bn(data.roster.length)} জন শিক্ষার্থী
+          <h2 className="font-display text-2xl text-heading">{data.cls.name}</h2>
+          <p className="mt-0.5 text-sm text-label">
+            Teacher: {data.cls.teacherName} • {data.roster.length} students
           </p>
         </div>
         <CodeChip code={data.cls.code} />
       </div>
 
       {/* Start session */}
-      <Card className="border-emerald-200 bg-emerald-50/50 shadow-sm">
+      <Card className="card-3d border-gradient-amber">
         <CardContent className="flex flex-col gap-5 p-6">
           <div>
-            <h3 className="flex items-center gap-2 font-semibold text-emerald-900">
+            <h3 className="flex items-center gap-2 font-semibold text-heading">
               <Play className="h-4 w-4" aria-hidden />
-              সেশন শুরু করুন
+              Start attendance
             </h3>
-            <p className="mt-0.5 text-sm text-emerald-800/70">
-              উপস্থিতির টাইম-উইন্ডো ও যাচাই নিয়ম ঠিক করে সেশন চালু করুন।
+            <p className="mt-0.5 text-sm text-label">
+              Set the time window and verification rules, then go live.
             </p>
           </div>
 
           <div className="grid gap-5 sm:grid-cols-3">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="duration-select">সময়সীমা</Label>
+              <Label htmlFor="duration-select">Time limit</Label>
               <Select value={durationSec} onValueChange={setDurationSec}>
-                <SelectTrigger id="duration-select" className="w-full bg-white">
-                  <SelectValue placeholder="সময় নির্বাচন করুন" />
+                <SelectTrigger id="duration-select" className="w-full bg-card">
+                  <SelectValue placeholder="Pick a duration" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="60">৬০ সেকেন্ড</SelectItem>
-                  <SelectItem value="120">১২০ সেকেন্ড</SelectItem>
-                  <SelectItem value="180">১৮০ সেকেন্ড</SelectItem>
+                  <SelectItem value="60">60 seconds</SelectItem>
+                  <SelectItem value="120">120 seconds</SelectItem>
+                  <SelectItem value="180">180 seconds</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="flex flex-col gap-2">
-              <Label htmlFor="radius-slider">রেডিয়াস: {bn(radius)} মিটার</Label>
+              <Label htmlFor="radius-slider">GPS radius: {radius} m</Label>
               <Slider
                 id="radius-slider"
                 value={[radius]}
@@ -233,8 +231,8 @@ export default function TeacherClassDetail({
                 min={30}
                 max={300}
                 step={10}
-                className="mt-2 [&_[data-slot=slider-range]]:bg-emerald-600 [&_[data-slot=slider-thumb]]:border-emerald-600"
-                aria-label="GPS রেডিয়াস (মিটার)"
+                className="mt-2 [&_[data-slot=slider-range]]:bg-gold-deep [&_[data-slot=slider-thumb]]:border-gold-deep"
+                aria-label="GPS radius (meters)"
               />
             </div>
 
@@ -243,10 +241,10 @@ export default function TeacherClassDetail({
                 id="gps-switch"
                 checked={requireGps}
                 onCheckedChange={setRequireGps}
-                className="data-[state=checked]:bg-emerald-600"
+                className="data-[state=checked]:bg-ink"
               />
               <Label htmlFor="gps-switch" className="cursor-pointer font-normal">
-                GPS যাচাই করুন
+                Verify GPS location
               </Label>
             </div>
           </div>
@@ -254,17 +252,17 @@ export default function TeacherClassDetail({
           <Button
             onClick={startSession}
             disabled={starting}
-            className="w-full bg-emerald-600 font-semibold text-white hover:bg-emerald-700 sm:w-fit sm:self-start"
+            className="btn-3d btn-gold w-full font-semibold sm:w-fit sm:self-start"
           >
             {starting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                লোকেশন নেওয়া হচ্ছে…
+                Getting location…
               </>
             ) : (
               <>
                 <Play className="h-4 w-4" aria-hidden />
-                সেশন শুরু
+                Start session
               </>
             )}
           </Button>
@@ -273,29 +271,29 @@ export default function TeacherClassDetail({
 
       <div className="grid gap-5 lg:grid-cols-2">
         {/* Roster */}
-        <Card className="border-neutral-200 shadow-sm">
+        <Card className="card-3d">
           <CardContent className="flex flex-col gap-3 p-6">
             <div className="flex items-center justify-between gap-2">
-              <h3 className="flex items-center gap-2 font-semibold text-neutral-900">
-                <Users className="h-4 w-4 text-neutral-500" aria-hidden />
-                শিক্ষার্থী তালিকা ({bn(data.roster.length)})
+              <h3 className="flex items-center gap-2 font-semibold text-heading">
+                <Users className="h-4 w-4 text-label" aria-hidden />
+                Students ({data.roster.length})
               </h3>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setStudentsOpen(true)}
-                className="border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                className="border-border text-ink hover:bg-secondary"
               >
                 <UserPlus className="h-4 w-4" aria-hidden />
-                স্টুডেন্ট যোগ করুন
+                Add students
               </Button>
             </div>
 
             {data.roster.length === 0 ? (
               <EmptyState
                 icon={Users}
-                title="এখনো কোনো শিক্ষার্থী নেই"
-                hint="CSV আকারে পেস্ট করে যোগ করুন, অথবা শিক্ষার্থীরা ক্লাস কোড দিয়ে নিজেরাই যুক্ত হবে।"
+                title="No students yet"
+                hint="Paste a CSV list to add them, or share the class code so students can join themselves."
               />
             ) : (
               <ScrollList>
@@ -303,14 +301,14 @@ export default function TeacherClassDetail({
                   {data.roster.map((s) => (
                     <li
                       key={s.id}
-                      className="flex items-center justify-between gap-3 rounded-lg border border-neutral-100 bg-neutral-50/60 px-3 py-2"
+                      className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-cream-soft/60 px-3 py-2"
                     >
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold/25 text-sm font-bold text-ink">
                         {s.name.trim().charAt(0) || '?'}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-neutral-900">{s.name}</span>
-                        <span className="block font-mono text-xs text-neutral-500">{s.phone}</span>
+                        <span className="block truncate text-sm font-medium text-heading">{s.name}</span>
+                        <span className="block font-mono text-xs text-label">{s.phone}</span>
                       </span>
                     </li>
                   ))}
@@ -318,22 +316,26 @@ export default function TeacherClassDetail({
               </ScrollList>
             )}
 
-            <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              স্টুডেন্টরা ক্লাস কোড দিয়েও যুক্ত হতে পারবে: <span className="font-mono font-bold">{data.cls.code}</span>
+            <p className="rounded-lg bg-gold/15 px-3 py-2 text-xs text-ink">
+              Students can also join with code: <span className="font-mono font-bold">{data.cls.code}</span>
             </p>
           </CardContent>
         </Card>
 
         {/* Recent sessions */}
-        <Card className="border-neutral-200 shadow-sm">
+        <Card className="card-3d">
           <CardContent className="flex flex-col gap-3 p-6">
-            <h3 className="flex items-center gap-2 font-semibold text-neutral-900">
-              <CalendarClock className="h-4 w-4 text-neutral-500" aria-hidden />
-              সাম্প্রতিক সেশনসমূহ
+            <h3 className="flex items-center gap-2 font-semibold text-heading">
+              <CalendarClock className="h-4 w-4 text-label" aria-hidden />
+              Recent sessions
             </h3>
 
             {data.sessions.length === 0 ? (
-              <EmptyState icon={CalendarClock} title="এখনো কোনো সেশন হয়নি" hint="উপরের কার্ড থেকে প্রথম সেশন শুরু করুন।" />
+              <EmptyState
+                icon={CalendarClock}
+                title="No sessions yet"
+                hint="Start your first session from the card above."
+              />
             ) : (
               <ScrollList>
                 <ul className="flex flex-col gap-2">
@@ -342,13 +344,11 @@ export default function TeacherClassDetail({
                     return (
                       <li
                         key={s.id}
-                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-neutral-100 bg-neutral-50/60 px-3 py-2.5"
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/60 bg-cream-soft/60 px-3 py-2.5"
                       >
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-neutral-900">{bnDateTime(s.startedAt)}</p>
-                          <p className="text-xs text-neutral-500">
-                            {bn(s.presentCount)} জন উপস্থিত
-                          </p>
+                          <p className="truncate text-sm font-medium text-heading">{fmtDateTime(s.startedAt)}</p>
+                          <p className="text-xs text-label">{s.presentCount} present</p>
                         </div>
                         <div className="flex items-center gap-2">
                           <SessionStatusBadge status={s.status} endsAt={s.endsAt} />
@@ -356,14 +356,14 @@ export default function TeacherClassDetail({
                             <Button
                               size="sm"
                               onClick={() => onLive(s.id)}
-                              className="h-8 bg-emerald-600 px-3 text-white hover:bg-emerald-700"
+                              className="btn-3d btn-gold h-8 px-3"
                             >
                               <Radio className="h-3.5 w-3.5" aria-hidden />
-                              লাইভ দেখুন
+                              View live
                             </Button>
                           ) : (
-                            <Badge variant="outline" className="border-neutral-200 font-normal text-neutral-400">
-                              {bn(s.presentCount)}/{bn(data.roster.length)}
+                            <Badge variant="outline" className="border-border font-normal text-label">
+                              {s.presentCount}/{data.roster.length}
                             </Badge>
                           )}
                         </div>
@@ -381,39 +381,35 @@ export default function TeacherClassDetail({
       <Dialog open={studentsOpen} onOpenChange={setStudentsOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>স্টুডেন্ট যোগ করুন</DialogTitle>
+            <DialogTitle>Add students</DialogTitle>
             <DialogDescription>
-              প্রতি লাইনে একজন — ফরম্যাট: <span className="font-mono">নাম,ফোন</span>
+              One per line — format: <span className="font-mono">name,phone</span>
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={addStudents} className="flex flex-col gap-4">
             <Textarea
               value={studentsText}
               onChange={(e) => setStudentsText(e.target.value)}
-              placeholder={'রাহিম উদ্দিন,01712345678\nকরিম হোসেন,01812345678'}
+              placeholder={'Rahim Uddin,01712345678\nKarim Hossain,01812345678'}
               rows={6}
               className="font-mono text-sm"
-              aria-label="স্টুডেন্ট তালিকা (নাম,ফোন)"
+              aria-label="Student list (name,phone)"
             />
-            <p className="text-xs text-neutral-500">
-              স্টুডেন্টরা ক্লাস কোড দিয়েও যুক্ত হতে পারবে:{' '}
-              <span className="font-mono font-bold text-neutral-700">{data.cls.code}</span>
+            <p className="text-xs text-label">
+              Students can also join themselves with the class code:{' '}
+              <span className="font-mono font-bold text-ink">{data.cls.code}</span>
             </p>
             <DialogFooter>
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setStudentsOpen(false)}
-                className="border-neutral-300"
+                className="border-border hover:bg-secondary"
               >
-                বাতিল
+                Cancel
               </Button>
-              <Button
-                type="submit"
-                disabled={adding}
-                className="bg-emerald-600 font-semibold text-white hover:bg-emerald-700"
-              >
-                {adding ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : 'যোগ করুন'}
+              <Button type="submit" disabled={adding} className="btn-3d btn-ink font-semibold">
+                {adding ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : 'Add'}
               </Button>
             </DialogFooter>
           </form>

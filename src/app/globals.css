@@ -6,8 +6,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-mono: ui-monospace, SFMono-Regular, monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -37,86 +38,520 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  /* Brand tokens — Cavendish Yellow + Peppercorn + accents */
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-gold-deep: var(--gold-deep);
+  --color-green: var(--green);
+  --color-green-soft: var(--green-soft);
+  --color-green-light: var(--green-light);
+  --color-peach: var(--peach);
+  --color-peach-soft: var(--peach-soft);
+  --color-navy: var(--navy);
+  --color-rust: var(--rust);
+  --color-cream: var(--cream);
+  --color-cream-soft: var(--cream-soft);
+  /* Text category tokens */
+  --color-heading: var(--text-heading);
+  --color-body: var(--text-body);
+  --color-label: var(--text-label);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* ===== Hajira — Pro Design System =====
+   Cavendish Yellow (#FFE01B) bold accent, Peppercorn (#241C15) warm ink,
+   cream canvas (#EFEDE9), white cards. Fraunces serif display headings,
+   Inter body. 8-16px radius. Restrained motion. Generous whitespace.
+*/
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --radius: 0.625rem;               /* 10px — moderate rounding per spec */
+
+  /* Light theme — warm cream canvas */
+  --background: #EFEDE9;            /* cream canvas — warm, not pure white */
+  --foreground: #241C15;            /* Peppercorn ink — body text */
+  --card: #FFFFFF;                  /* white cards on cream */
+  --card-foreground: #241C15;
+  --popover: #FFFFFF;
+  --popover-foreground: #241C15;
+
+  --primary: #241C15;               /* Peppercorn — primary buttons */
+  --primary-foreground: #EFEDE9;    /* cream text on dark */
+  --secondary: #F4F2EE;             /* subtle warm gray surface */
+  --secondary-foreground: #241C15;
+  --muted: #F4F2EE;
+  --muted-foreground: #6B6760;      /* warm medium gray */
+  --accent: #FFE01B;                /* Cavendish Yellow — bold accent */
+  --accent-foreground: #241C15;     /* Peppercorn text on yellow */
+  --destructive: #C8442E;           /* accent red */
+  --destructive-foreground: #FFFFFF;
+  --border: #E5E1DA;                /* warm hairline border */
+  --input: #E5E1DA;
+  --ring: #241C15;
+
+  /* Text category tokens */
+  --text-heading: #241C15;          /* Peppercorn — headings */
+  --text-body: #3D332B;             /* warm dark brown-gray — body */
+  --text-label: #6B6760;            /* warm gray — labels/captions */
+  --text-muted: #9C968E;            /* warm light gray — de-emphasized */
+
+  /* Brand tokens */
+  --gold: #FFE01B;                  /* Cavendish Yellow — bold accent */
+  --gold-soft: #FFE94F;             /* lighter yellow hover */
+  --gold-deep: #E6C800;             /* deeper yellow */
+  --ink: #241C15;                   /* Peppercorn — warm near-black */
+  --ink-soft: #3D332B;              /* lighter peppercorn */
+  --green: #2D4F35;                 /* dark forest green accent */
+  --green-soft: #3A6B47;
+  --green-light: #4A7C58;
+  --peach: #F4C9A4;                 /* warm peach accent */
+  --peach-soft: #F8D8BC;
+  --navy: #1B3358;                  /* deep navy accent */
+  --rust: #C8442E;                  /* warm red accent */
+  --cream: #EFEDE9;                 /* warm cream */
+  --cream-soft: #F4F2EE;
+
+  --chart-1: #241C15;
+  --chart-2: #FFE01B;
+  --chart-3: #2D4F35;
+  --chart-4: #F4C9A4;
+  --chart-5: #1B3358;
+
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #241C15;
+  --sidebar-primary: #241C15;
+  --sidebar-primary-foreground: #EFEDE9;
+  --sidebar-accent: #FFE01B;
+  --sidebar-accent-foreground: #241C15;
+  --sidebar-border: #E5E1DA;
+  --sidebar-ring: #241C15;
+
+  --shadow-color: 36 28 21;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #1A1612;            /* warm near-black canvas */
+  --foreground: #EFEDE9;            /* cream text */
+  --card: #241C15;                  /* Peppercorn card */
+  --card-foreground: #EFEDE9;
+  --popover: #241C15;
+  --popover-foreground: #EFEDE9;
+
+  --primary: #EFEDE9;               /* cream primary on dark */
+  --primary-foreground: #241C15;
+  --secondary: #2D2620;
+  --secondary-foreground: #EFEDE9;
+  --muted: #2D2620;
+  --muted-foreground: #9C968E;
+  --accent: #FFE01B;                /* yellow stays bright */
+  --accent-foreground: #241C15;
+  --destructive: #E55A3F;
+  --destructive-foreground: #FFFFFF;
+  --border: #3D332B;
+  --input: #3D332B;
+  --ring: #FFE01B;
+
+  --text-heading: #EFEDE9;
+  --text-body: #D4CFC8;
+  --text-label: #9C968E;
+  --text-muted: #6B6760;
+
+  --gold: #FFE01B;
+  --gold-soft: #FFE94F;
+  --gold-deep: #E6C800;
+  --ink: #EFEDE9;
+  --ink-soft: #D4CFC8;
+  --green: #4A7C58;
+  --green-soft: #5A8C68;
+  --green-light: #6A9C78;
+  --peach: #F4C9A4;
+  --peach-soft: #F8D8BC;
+  --navy: #3B5578;
+  --rust: #E55A3F;
+  --cream: #1A1612;
+  --cream-soft: #241C15;
+
+  --chart-1: #EFEDE9;
+  --chart-2: #FFE01B;
+  --chart-3: #6A9C78;
+  --chart-4: #F4C9A4;
+  --chart-5: #3B5578;
+
+  --sidebar: #1A1612;
+  --sidebar-foreground: #EFEDE9;
+  --sidebar-primary: #FFE01B;
+  --sidebar-primary-foreground: #241C15;
+  --sidebar-accent: #2D2620;
+  --sidebar-accent-foreground: #FFE01B;
+  --sidebar-border: #2D2620;
+  --sidebar-ring: #FFE01B;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    -webkit-tap-highlight-color: transparent;
+    font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    color: var(--text-body);
+    font-weight: 400;
+    letter-spacing: -0.005em;
+    line-height: 1.6;
   }
+  /* Display headings — Fraunces serif, light weight, generous spacing */
+  h1, h2, h3 {
+    font-family: var(--font-fraunces), Georgia, serif;
+    font-weight: 400;
+    letter-spacing: -0.015em;
+    line-height: 1.15;
+    color: var(--text-heading);
+  }
+  h4, h5, h6 {
+    font-family: var(--font-inter), sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+    color: var(--text-heading);
+  }
+  .dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+    color: var(--text-heading);
+  }
+  strong, b {
+    color: var(--text-heading);
+    font-weight: 600;
+  }
+  label {
+    color: var(--text-label);
+    font-weight: 500;
+  }
+  p {
+    line-height: 1.6;
+  }
+  ::selection {
+    background: var(--gold);
+    color: var(--ink);
+  }
+}
+
+/* ===== Scrollbar ===== */
+.scrollbar-premium::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scrollbar-premium::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-premium::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 9999px;
+}
+.scrollbar-premium::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ===== Card — white on cream, soft shadow, generous padding, 10px radius ===== */
+.card-3d {
+  position: relative;
+  background: var(--card);
+  border-radius: 10px;
+  border: none;
+  box-shadow:
+    0 1px 2px rgba(36, 28, 21, 0.04),
+    0 4px 12px rgba(36, 28, 21, 0.05);
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.card-3d:hover {
+  transform: translateY(-3px) scale(1.01);
+  box-shadow:
+    0 4px 8px rgba(36, 28, 21, 0.06),
+    0 12px 28px rgba(36, 28, 21, 0.08);
+}
+
+/* Inner glow overlay — subtle yellow tint on hover */
+.card-inner-glow {
+  position: relative;
+  overflow: hidden;
+}
+.card-inner-glow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--gold) 6%, transparent) 0%,
+    transparent 50%
+  );
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease;
+}
+.card-inner-glow:hover::before {
+  opacity: 1;
+}
+
+/* ===== Glassmorphism — minimal frosted, warm tint ===== */
+.glass {
+  background: color-mix(in srgb, var(--card) 82%, transparent);
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+  border-bottom: 1px solid var(--border);
+}
+.glass-premium {
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  backdrop-filter: blur(14px) saturate(130%);
+  -webkit-backdrop-filter: blur(14px) saturate(130%);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 0 color-mix(in srgb, white 15%, transparent) inset;
+}
+
+/* ===== Gradient text ===== */
+.text-gradient-primary {
+  background: linear-gradient(120deg, var(--ink) 0%, #4A3F36 60%, var(--ink) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.text-gradient-amber {
+  background: linear-gradient(120deg, var(--gold-deep), var(--gold));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.text-gradient-hero {
+  background: linear-gradient(120deg, var(--ink) 0%, #5A4A3D 45%, var(--gold-deep) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ===== Buttons — Peppercorn primary, Yellow secondary, 150-250ms hover ===== */
+.btn-3d {
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  box-shadow:
+    0 1px 0 color-mix(in srgb, white 10%, transparent) inset,
+    0 -1px 0 color-mix(in srgb, black 12%, transparent) inset,
+    0 2px 6px rgba(36, 28, 21, 0.10);
+  font-weight: 500;
+  letter-spacing: 0;
+  border-radius: 10px;
+}
+.btn-3d:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, white 10%, transparent) inset,
+    0 -1px 0 color-mix(in srgb, black 12%, transparent) inset,
+    0 4px 12px rgba(36, 28, 21, 0.16);
+}
+.btn-3d:active {
+  transform: translateY(0) scale(1);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, white 8%, transparent) inset,
+    0 2px 4px rgba(36, 28, 21, 0.08);
+}
+
+/* Peppercorn primary button */
+.btn-ink {
+  background: var(--ink);
+  color: #EFEDE9;
+}
+.btn-ink:hover {
+  background: #3D332B;
+}
+.dark .btn-ink {
+  background: var(--ink);
+  color: #241C15;
+}
+.dark .btn-ink:hover {
+  background: #D4CFC8;
+}
+
+/* Cavendish Yellow secondary button */
+.btn-gold {
+  background: var(--gold);
+  color: var(--ink);
+}
+.btn-gold:hover {
+  background: var(--gold-deep);
+}
+
+/* Green secondary button */
+.btn-green {
+  background: var(--green);
+  color: #FFFFFF;
+}
+.btn-green:hover {
+  background: var(--green-soft);
+}
+
+/* ===== Stat card — subtle yellow corner glow ===== */
+.stat-card-premium {
+  position: relative;
+  overflow: hidden;
+}
+.stat-card-premium::after {
+  content: "";
+  position: absolute;
+  top: -30%;
+  right: -20%;
+  width: 50%;
+  height: 70%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--gold) 16%, transparent) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+  filter: blur(28px);
+}
+
+/* ===== Hero background — bold yellow field, quiet elsewhere ===== */
+.hero-bg {
+  position: relative;
+  background:
+    radial-gradient(50% 45% at 50% 0%, color-mix(in srgb, var(--gold) 14%, transparent), transparent 70%),
+    radial-gradient(30% 30% at 90% 20%, color-mix(in srgb, var(--gold) 8%, transparent), transparent 70%);
+}
+
+/* Decorative corner glow — yellow */
+.corner-glow {
+  position: relative;
+}
+.corner-glow::before {
+  content: "";
+  position: absolute;
+  top: -60px;
+  right: -60px;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--gold) 26%, transparent), transparent 70%);
+  filter: blur(40px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ===== Badge glow — yellow pulse ===== */
+.badge-glow {
+  animation: badge-pulse 2.4s ease-in-out infinite;
+}
+@keyframes badge-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 40%, transparent); }
+  50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--gold) 0%, transparent); }
+}
+
+/* ===== Gradient borders ===== */
+.border-gradient-teal {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(135deg, var(--ink), #4A3F36, var(--ink)) border-box;
+}
+.border-gradient-amber {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(135deg, var(--gold), var(--gold-deep)) border-box;
+}
+
+/* ===== Colored shadows — warm, soft ===== */
+.shadow-teal-glow { box-shadow: 0 4px 16px -4px rgba(36, 28, 21, 0.12); }
+.shadow-amber-glow { box-shadow: 0 4px 16px -4px color-mix(in srgb, var(--gold) 42%, transparent); }
+.shadow-emerald-glow { box-shadow: 0 4px 16px -4px color-mix(in srgb, var(--green) 38%, transparent); }
+.shadow-cyan-glow { box-shadow: 0 4px 16px -4px rgba(36, 28, 21, 0.12); }
+
+/* Badge utilities */
+.badge-gold {
+  background: var(--gold);
+  color: var(--ink);
+}
+.badge-green {
+  background: var(--green);
+  color: #FFFFFF;
+}
+.badge-ink {
+  background: var(--ink);
+  color: #EFEDE9;
+}
+.badge-peach {
+  background: var(--peach);
+  color: var(--ink);
+}
+.badge-navy {
+  background: var(--navy);
+  color: #FFFFFF;
+}
+
+/* ===== Animations — restrained, 150-250ms, fade/slide-up ===== */
+@keyframes float-subtle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.animate-float-subtle { animation: float-subtle 5s ease-in-out infinite; }
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.animate-pulse-soft { animation: pulse-soft 2.6s ease-in-out infinite; }
+
+@keyframes shimmer-soft {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--gold) 20%, transparent) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer-soft 2.2s ease-in-out infinite;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up { animation: fade-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-scale-in { animation: scale-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes blob-float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -20px) scale(1.06); }
+  66% { transform: translate(-20px, 20px) scale(0.96); }
+}
+.animate-blob { animation: blob-float 18s ease-in-out infinite; }
+
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+.animate-spin-slow { animation: spin-slow 12s linear infinite; }
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Safe area padding for mobile */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+.pt-safe { padding-top: env(safe-area-inset-top); }
+
+/* Display heading utility — apply Fraunces serif */
+.font-display {
+  font-family: var(--font-fraunces), Georgia, serif;
 }

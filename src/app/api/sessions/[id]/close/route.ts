@@ -15,8 +15,8 @@ export async function POST(
     where: { id },
     include: { class: { select: { teacherId: true } } },
   })
-  if (!session) return NextResponse.json({ error: 'সেশন পাওয়া যায়নি' }, { status: 404 })
-  if (session.class.teacherId !== user.id) return forbidden('এই সেশনের শিক্ষক আপনি নন')
+  if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+  if (session.class.teacherId !== user.id) return forbidden('You are not the teacher of this session')
 
   const updated = await db.session.update({
     where: { id },

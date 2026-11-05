@@ -15,7 +15,7 @@ export async function GET(
     where: { id },
     include: { teacher: { select: { name: true } } },
   })
-  if (!cls) return NextResponse.json({ error: 'ক্লাস পাওয়া যায়নি' }, { status: 404 })
+  if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 })
 
   const sessions = await db.session.findMany({
     where: { classId: id },
@@ -25,7 +25,7 @@ export async function GET(
   })
 
   if (user.role === 'TEACHER') {
-    if (cls.teacherId !== user.id) return forbidden('এই ক্লাসের শিক্ষক আপনি নন')
+    if (cls.teacherId !== user.id) return forbidden('You are not the teacher of this class')
     const memberships = await db.membership.findMany({
       where: { classId: id },
       include: { student: { select: { id: true, name: true, phone: true } } },
@@ -49,7 +49,7 @@ export async function GET(
   const member = await db.membership.findUnique({
     where: { classId_studentId: { classId: id, studentId: user.id } },
   })
-  if (!member) return forbidden('আপনি এই ক্লাসের শিক্ষার্থী নন')
+  if (!member) return forbidden('You are not a student of this class')
 
   const myCheckIns = await db.checkIn.findMany({
     where: { studentId: user.id, session: { classId: id } },

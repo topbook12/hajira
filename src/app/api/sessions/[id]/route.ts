@@ -17,7 +17,7 @@ export async function GET(
       class: { select: { id: true, name: true, code: true, teacherId: true } },
     },
   })
-  if (!session) return NextResponse.json({ error: 'সেশন পাওয়া যায়নি' }, { status: 404 })
+  if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
 
   const rosterCount = await db.membership.count({ where: { classId: session.classId } })
   const now = new Date()
@@ -25,7 +25,7 @@ export async function GET(
   const effectiveStatus = session.status === 'ACTIVE' && expired ? 'CLOSED' : session.status
 
   if (user.role === 'TEACHER') {
-    if (session.class.teacherId !== user.id) return forbidden('এই সেশনের শিক্ষক আপনি নন')
+    if (session.class.teacherId !== user.id) return forbidden('You are not the teacher of this session')
     const checkIns = await db.checkIn.findMany({
       where: { sessionId: id },
       include: { student: { select: { id: true, name: true, phone: true } } },
@@ -66,7 +66,7 @@ export async function GET(
   const member = await db.membership.findUnique({
     where: { classId_studentId: { classId: session.classId, studentId: user.id } },
   })
-  if (!member) return forbidden('আপনি এই ক্লাসের শিক্ষার্থী নন')
+  if (!member) return forbidden('You are not a student of this class')
 
   const mine = await db.checkIn.findUnique({
     where: { sessionId_studentId: { sessionId: id, studentId: user.id } },

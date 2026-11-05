@@ -72,12 +72,12 @@ export default function HajiraPage() {
 
   if (!booted) {
     body = (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24" role="status" aria-label="লোড হচ্ছে">
-        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-600/20">
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24" role="status" aria-label="Loading">
+        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-ink text-gold shadow-lg shadow-ink/20">
           <GraduationCap className="h-8 w-8" aria-hidden />
         </span>
-        <p className="text-lg font-bold text-emerald-700">হাজিরা</p>
-        <Loader2 className="h-5 w-5 animate-spin text-neutral-400" aria-hidden />
+        <p className="font-display text-lg text-heading">Hajira</p>
+        <Loader2 className="h-5 w-5 animate-spin text-label" aria-hidden />
       </div>
     )
   } else if (!user) {
@@ -149,36 +149,34 @@ export default function HajiraPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-neutral-50 text-neutral-900">
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
       {user ? (
-        <header className="sticky top-0 z-40 border-b border-neutral-200 bg-white/85 backdrop-blur">
-          <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-3">
+        <header className="glass-premium sticky top-0 z-40">
+          <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-sm">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-ink text-gold shadow-sm">
                 <GraduationCap className="h-5 w-5" aria-hidden />
               </span>
-              <span className="text-lg font-extrabold tracking-tight text-emerald-700">হাজিরা</span>
+              <span className="font-display text-xl tracking-tight text-heading">Hajira</span>
             </div>
             <div className="flex min-w-0 items-center gap-2">
-              <span className="hidden max-w-[180px] truncate text-sm font-medium text-neutral-700 sm:block">
+              <span className="hidden max-w-[180px] truncate text-sm font-medium text-body sm:block">
                 {user.name}
               </span>
-              <Badge
-                className={
-                  user.role === 'TEACHER'
-                    ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
-                    : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-100'
-                }
-              >
-                {user.role === 'TEACHER' ? 'শিক্ষক' : 'শিক্ষার্থী'}
-              </Badge>
+              {user.role === 'TEACHER' ? (
+                <Badge className="badge-gold border-none hover:bg-gold">Teacher</Badge>
+              ) : (
+                <Badge className="border border-border bg-secondary text-label hover:bg-secondary">
+                  Student
+                </Badge>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={handleLogout}
-                aria-label="লগআউট"
-                title="লগআউট"
-                className="text-neutral-500 hover:text-rose-600"
+                aria-label="Sign out"
+                title="Sign out"
+                className="text-label hover:bg-rust/10 hover:text-rust"
               >
                 <LogOut className="h-4 w-4" aria-hidden />
               </Button>
@@ -187,11 +185,11 @@ export default function HajiraPage() {
         </header>
       ) : null}
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">{body}</main>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:py-8">{body}</main>
 
-      <footer className="mt-auto border-t border-neutral-200 bg-white">
-        <div className="mx-auto w-full max-w-5xl px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-xs text-neutral-500">
-          হাজিরা — স্মার্ট অ্যাটেনডেন্স প্ল্যাটফর্ম • ডেমো ভার্সন
+      <footer className="mt-auto border-t border-border bg-card/60">
+        <div className="mx-auto w-full max-w-6xl px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-xs text-label">
+          Hajira — Smart Attendance Platform • Demo build
         </div>
       </footer>
     </div>
