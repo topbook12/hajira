@@ -6,7 +6,7 @@ import { GraduationCap, LogOut, Loader2 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { getUser, setUser as persistUser, type HajiraUser } from '@/lib/hajira-client'
+import { getUser, setUser as persistUser, logout as serverLogout, type HajiraUser } from '@/lib/hajira-client'
 import LoginScreen from '@/components/hajira/login-screen'
 import TeacherClassesView from '@/components/hajira/teacher/classes-view'
 import TeacherClassDetail from '@/components/hajira/teacher/class-detail'
@@ -37,6 +37,18 @@ export default function HajiraPage() {
   React.useEffect(() => {
     setUser(getUser())
     setBooted(true)
+    // server rejected the session cookie (expired/tampered) -> back to login
+    const onUnauthorized = () => {
+      setUser(null)
+      setTeacherView('classes')
+      setStudentView('home')
+      setSelectedClassId(null)
+      setLiveSessionId(null)
+      setReportClassId(null)
+      setStudentClassId(null)
+    }
+    window.addEventListener('hajira:unauthorized', onUnauthorized)
+    return () => window.removeEventListener('hajira:unauthorized', onUnauthorized)
   }, [])
 
   const bumpReload = () => setReloadKey((k) => k + 1)
@@ -51,8 +63,8 @@ export default function HajiraPage() {
     setStudentClassId(null)
   }
 
-  const handleLogout = () => {
-    persistUser(null)
+  const handleLogout = async () => {
+    await serverLogout() // clears the httpOnly cookie + local cache
     setUser(null)
     setTeacherView('classes')
     setStudentView('home')
@@ -188,8 +200,9 @@ export default function HajiraPage() {
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:py-8">{body}</main>
 
       <footer className="mt-auto border-t border-border bg-card/60">
-        <div className="mx-auto w-full max-w-6xl px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-xs text-label">
-          Hajira — Smart Attendance Platform • Demo build
+        <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-1 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-xs text-label sm:flex-row sm:text-left">
+          <span>Hajira — Smart Attendance Platform</span>
+          <span>Rotating QR • GPS geofence • Device binding • Excel archive</span>
         </div>
       </footer>
     </div>

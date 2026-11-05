@@ -55,14 +55,18 @@ export async function POST(req: NextRequest) {
   let gpsOk = !session.requireGps
   let distanceM: number | null = null
 
-  // Proof 3 (optional fast-entry): rotating QR payload or 6-digit PIN
+  // Proof 3 (WHEN + anti-forwarding): rotating QR payload or 6-digit PIN.
+  // The code changes every 30s and is signed per session — a screenshot sent
+  // to an off-campus friend is useless by the time they try it.
   if (code) {
     const v = verifyCode(code, session)
     if (v.ok) {
       method = v.method
     } else {
-      flags.push('Code verification failed (wrong or expired)')
+      flags.push('Attendance code invalid or expired')
     }
+  } else if (session.requireCode) {
+    flags.push('Attendance code missing (scan the QR or type the PIN)')
   }
 
   // Proof 2 (WHERE): GPS geofence

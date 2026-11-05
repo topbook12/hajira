@@ -17,7 +17,10 @@ export async function GET(
   if (cls.teacherId !== user.id) return forbidden('You are not the teacher of this class')
 
   const url = new URL(req.url)
-  const threshold = Math.min(Math.max(Number(url.searchParams.get('threshold')) || 60, 0), 100)
+  const threshold = Math.min(
+    Math.max(Number(url.searchParams.get('threshold')) || cls.threshold || 70, 0),
+    100
+  )
 
   const [roster, sessions] = await Promise.all([
     db.membership.findMany({

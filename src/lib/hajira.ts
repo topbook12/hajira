@@ -2,13 +2,14 @@ import crypto from 'node:crypto'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getUserIdFromRequest } from '@/lib/auth'
 
 export const SLOT_MS = 30_000 // rotating QR/PIN changes every 30 seconds
 
-/* ---------- auth helpers (demo-level: x-user-id header) ---------- */
+/* -------------------------- auth helpers (cookie) -------------------------- */
 
 export async function requireUser(req: NextRequest) {
-  const uid = req.headers.get('x-user-id')
+  const uid = getUserIdFromRequest(req)
   if (!uid) return null
   const user = await db.user.findUnique({ where: { id: uid } })
   return user

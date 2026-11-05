@@ -113,6 +113,16 @@ export default function TeacherLiveSession({
     }
   }, [sessionId, load])
 
+  /* polling fallback — guarantees the count stays true even if the realtime
+     relay blips; payload is a tiny JSON summary, so 5s is negligible */
+  React.useEffect(() => {
+    if (ended) return
+    const iv = setInterval(() => {
+      load()
+    }, 5000)
+    return () => clearInterval(iv)
+  }, [ended, load])
+
   /* rotating QR / PIN poll — every 5s while live */
   React.useEffect(() => {
     if (ended) {

@@ -33,16 +33,20 @@ export default function TeacherReportView({
   classId: string
   onBack: () => void
 }) {
-  const { err } = useHajiraToasts()
+  const { ok, err } = useHajiraToasts()
   const [data, setData] = React.useState<ReportData | null>(null)
-  const [threshold, setThreshold] = React.useState('60')
+  const [threshold, setThreshold] = React.useState<string>('')
   const [loading, setLoading] = React.useState(true)
+  const [exporting, setExporting] = React.useState(false)
 
   const load = React.useCallback(async () => {
     setLoading(true)
     try {
-      const d = await api<ReportData>(`/api/reports/class/${classId}?threshold=${threshold}`)
+      const q = threshold ? `?threshold=${threshold}` : ''
+      const d = await api<ReportData>(`/api/reports/class/${classId}${q}`)
       setData(d)
+      // adopt the class default (70% for BD universities) until the teacher picks one
+      if (!threshold) setThreshold(String(d.threshold))
     } catch (e) {
       err('Could not load the report', e instanceof Error ? e.message : undefined)
     } finally {
@@ -81,6 +85,28 @@ export default function TeacherReportView({
     URL.revokeObjectURL(url)
   }
 
+  const downloadExcel = async () => {
+    setExporting(true)
+    try {
+      const res = await fetch(`/api/classes/${classId}/export`)
+      if (!res.ok) throw new Error('Export failed')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Hajira_${data?.cls.name.replace(/\s+/g, '-') ?? 'class'}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      ok('Excel downloaded', 'Summary, sessions and full check-in log inside')
+    } catch (e) {
+      err('Could not export Excel', e instanceof Error ? e.message : undefined)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <section aria-label="Attendance report" className="flex flex-col gap-5">
       <Button
@@ -104,16 +130,30 @@ export default function TeacherReportView({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Select value={threshold} onValueChange={setThreshold}>
+          <Select value={threshold || undefined} onValueChange={setThreshold}>
             <SelectTrigger className="w-[130px] bg-card" aria-label="Eligibility threshold">
-              <SelectValue />
+              <SelectValue placeholder="Threshold" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="50">50%</SelectItem>
               <SelectItem value="60">60%</SelectItem>
+              <SelectItem value="70">70%</SelectItem>
               <SelectItem value="75">75%</SelectItem>
+              <SelectItem value="80">80%</SelectItem>
             </SelectContent>
           </Select>
+          <Button
+            onClick={downloadExcel}
+            disabled={!data || exporting}
+            className="btn-3d btn-ink font-semibold"
+          >
+            {exporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <Download className="h-4 w-4" aria-hidden />
+            )}
+            Export Excel
+          </Button>
           <Button
             onClick={downloadCsv}
             disabled={!data || data.rows.length === 0}
@@ -121,7 +161,7 @@ export default function TeacherReportView({
             className="border-border font-semibold text-ink hover:bg-secondary"
           >
             <Download className="h-4 w-4" aria-hidden />
-            Export CSV
+            CSV
           </Button>
         </div>
       </div>

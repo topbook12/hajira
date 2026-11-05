@@ -5,9 +5,11 @@ import * as React from 'react'
 import {
   ArrowLeft,
   CalendarClock,
+  Download,
   Loader2,
   Play,
   Radio,
+  ScanLine,
   UserPlus,
   Users,
 } from 'lucide-react'
@@ -62,7 +64,9 @@ export default function TeacherClassDetail({
   const [durationSec, setDurationSec] = React.useState('120')
   const [radius, setRadius] = React.useState(100)
   const [requireGps, setRequireGps] = React.useState(true)
+  const [requireCode, setRequireCode] = React.useState(true)
   const [starting, setStarting] = React.useState(false)
+  const [exporting, setExporting] = React.useState(false)
 
   // add-students dialog
   const [studentsOpen, setStudentsOpen] = React.useState(false)
@@ -98,6 +102,7 @@ export default function TeacherClassDetail({
           durationSec: Number(durationSec),
           radiusM: radius,
           requireGps,
+          requireCode,
           lat: pos?.lat,
           lng: pos?.lng,
         },
@@ -110,6 +115,28 @@ export default function TeacherClassDetail({
       err('Could not start the session', e instanceof Error ? e.message : undefined)
     } finally {
       setStarting(false)
+    }
+  }
+
+  const exportExcel = async () => {
+    setExporting(true)
+    try {
+      const res = await fetch(`/api/classes/${classId}/export`)
+      if (!res.ok) throw new Error('Export failed')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Hajira_${data?.cls.name.replace(/\s+/g, '-') ?? 'class'}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      ok('Excel downloaded', 'Summary, sessions and full check-in log inside')
+    } catch (e) {
+      err('Could not export Excel', e instanceof Error ? e.message : undefined)
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -191,7 +218,23 @@ export default function TeacherClassDetail({
             Teacher: {data.cls.teacherName} • {data.roster.length} students
           </p>
         </div>
-        <CodeChip code={data.cls.code} />
+        <div className="flex items-center gap-2">
+          <CodeChip code={data.cls.code} />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportExcel}
+            disabled={exporting}
+            className="border-border font-semibold text-ink hover:bg-secondary"
+          >
+            {exporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <Download className="h-4 w-4" aria-hidden />
+            )}
+            Excel
+          </Button>
+        </div>
       </div>
 
       {/* Start session */}
@@ -236,18 +279,37 @@ export default function TeacherClassDetail({
               />
             </div>
 
-            <div className="flex items-center gap-3">
-              <Switch
-                id="gps-switch"
-                checked={requireGps}
-                onCheckedChange={setRequireGps}
-                className="data-[state=checked]:bg-ink"
-              />
-              <Label htmlFor="gps-switch" className="cursor-pointer font-normal">
-                Verify GPS location
-              </Label>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="gps-switch"
+                  checked={requireGps}
+                  onCheckedChange={setRequireGps}
+                  className="data-[state=checked]:bg-ink"
+                />
+                <Label htmlFor="gps-switch" className="cursor-pointer font-normal">
+                  Verify GPS location
+                </Label>
+              </div>
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="code-switch"
+                  checked={requireCode}
+                  onCheckedChange={setRequireCode}
+                  className="data-[state=checked]:bg-ink"
+                />
+                <Label htmlFor="code-switch" className="cursor-pointer font-normal">
+                  Require QR / PIN
+                </Label>
+              </div>
             </div>
           </div>
+
+          <p className="flex items-start gap-1.5 text-xs text-label">
+            <ScanLine className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+            The QR code and 6-digit PIN refresh every 30 seconds while the session is live —
+            screenshots sent to absent friends stop working within half a minute.
+          </p>
 
           <Button
             onClick={startSession}

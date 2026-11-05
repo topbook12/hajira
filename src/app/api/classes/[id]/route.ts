@@ -33,7 +33,7 @@ export async function GET(
     })
     return NextResponse.json({
       role: 'TEACHER',
-      cls: { id: cls.id, name: cls.name, code: cls.code, teacherName: cls.teacher.name },
+      cls: { id: cls.id, name: cls.name, code: cls.code, teacherName: cls.teacher.name, threshold: cls.threshold },
       roster: memberships.map((m) => m.student),
       sessions: sessions.map((s) => ({
         id: s.id,
@@ -60,13 +60,14 @@ export async function GET(
 
   return NextResponse.json({
     role: 'STUDENT',
-    cls: { id: cls.id, name: cls.name, code: cls.code, teacherName: cls.teacher.name },
+    cls: { id: cls.id, name: cls.name, code: cls.code, teacherName: cls.teacher.name, threshold: cls.threshold },
     myPct: pct,
     sessions: sessions.map((s) => {
       const mine = bySession.get(s.id)
       return {
         id: s.id,
         startedAt: s.startedAt,
+        endsAt: s.endsAt,
         status: s.status,
         myStatus: mine ? mine.status : 'ABSENT',
         myMethod: mine ? mine.method : null,

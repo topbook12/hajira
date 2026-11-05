@@ -66,7 +66,8 @@ export default function StudentClassDetail({
     )
   }
 
-  const atRisk = data.myPct < 60
+  const threshold = data?.cls.threshold ?? 70
+  const atRisk = data.myPct < threshold
 
   return (
     <section aria-label={data.cls.name} className="flex flex-col gap-5">
@@ -104,7 +105,9 @@ export default function StudentClassDetail({
               aria-label={`Attendance ${data.myPct}%`}
             />
           </div>
-          <p className="text-sm text-body">You need at least 60% attendance to sit for the exam</p>
+          <p className="text-sm text-body">
+            You need at least {threshold}% attendance to sit for the exam
+          </p>
           {atRisk ? (
             <p className="rounded-lg bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-800">
               You are at risk — make sure to attend the upcoming sessions.
@@ -131,7 +134,10 @@ export default function StudentClassDetail({
             <ScrollList>
               <ul className="flex flex-col gap-2">
                 {data.sessions.map((s) => {
-                  const isRunning = s.status === 'ACTIVE' && s.myStatus === 'ABSENT'
+                  const isRunning =
+                    s.status === 'ACTIVE' &&
+                    s.myStatus === 'ABSENT' &&
+                    (!s.endsAt || new Date(s.endsAt).getTime() > Date.now())
                   return (
                     <li
                       key={s.id}

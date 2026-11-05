@@ -16,10 +16,8 @@ const fraunces = Fraunces({
 export const metadata: Metadata = {
   title: "Hajira — Smart Attendance Platform",
   description:
-    "Attendance in 60 seconds — proxy-proof, effortless. Fingerprint, GPS geofence and time-window verification.",
-  icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
-  },
+    "Attendance in 60 seconds — proxy-proof, effortless. Rotating QR, GPS geofence, device binding and Excel archive.",
+  applicationName: "Hajira",
 };
 
 export default function RootLayout({

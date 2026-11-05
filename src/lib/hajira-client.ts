@@ -49,16 +49,23 @@ export type RosterStudent = { id: string; name: string; phone: string }
 
 export type TeacherClassDetailData = {
   role: 'TEACHER'
-  cls: { id: string; name: string; code: string; teacherName: string }
+  cls: { id: string; name: string; code: string; teacherName: string; threshold?: number }
   roster: RosterStudent[]
   sessions: { id: string; startedAt: string; status: string; endsAt: string; presentCount: number }[]
 }
 
 export type StudentClassDetailData = {
   role: 'STUDENT'
-  cls: { id: string; name: string; code: string; teacherName: string }
+  cls: { id: string; name: string; code: string; teacherName: string; threshold?: number }
   myPct: number
-  sessions: { id: string; startedAt: string; status: string; myStatus: CheckInStatus; myMethod: string | null }[]
+  sessions: {
+    id: string
+    startedAt: string
+    endsAt?: string
+    status: string
+    myStatus: CheckInStatus
+    myMethod: string | null
+  }[]
 }
 
 export type LiveCheckInRow = {
@@ -206,15 +213,32 @@ export async function api<T>(
     method: opts?.method ?? 'GET',
     headers: {
       'Content-Type': 'application/json',
-      'x-user-id': getUser()?.id ?? '',
     },
     body: opts?.body !== undefined ? JSON.stringify(opts.body) : undefined,
   })
   if (!res.ok) {
+    // Expired/invalid session cookie -> drop cached identity so the app
+    // returns to the login screen on the next render.
+    if (res.status === 401) {
+      setUser(null)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('hajira:unauthorized'))
+      }
+    }
     const data = (await res.json().catch(() => null)) as { error?: string } | null
     throw new Error(data?.error ?? 'Something went wrong')
   }
   return (await res.json()) as T
+}
+
+/** Clear the server session cookie + local cache. */
+export async function logout(): Promise<void> {
+  try {
+    await fetch('/api/auth/logout', { method: 'POST' })
+  } catch {
+    /* network hiccup — local cache is cleared below anyway */
+  }
+  setUser(null)
 }
 
 /* ------------------------------- geolocation ----------------------------- */

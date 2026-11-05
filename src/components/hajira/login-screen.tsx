@@ -24,6 +24,8 @@ export default function LoginScreen({ onLogin }: { onLogin: (u: HajiraUser) => v
   const [role, setRole] = React.useState<Role>('TEACHER')
   const [name, setName] = React.useState('')
   const [phone, setPhone] = React.useState('')
+  const [password, setPassword] = React.useState('')
+  const [teacherKey, setTeacherKey] = React.useState('')
   const [loading, setLoading] = React.useState(false)
 
   const submit = async (e: React.FormEvent) => {
@@ -34,6 +36,10 @@ export default function LoginScreen({ onLogin }: { onLogin: (u: HajiraUser) => v
       err('Enter your name', 'Use at least 2 characters')
       return
     }
+    if (password.length < 4) {
+      err('Enter a password', 'At least 4 characters')
+      return
+    }
     if (!/^\d{6,15}$/.test(cleanPhone)) {
       err('Enter a valid phone number', 'Digits only, e.g. 01712345678')
       return
@@ -42,12 +48,18 @@ export default function LoginScreen({ onLogin }: { onLogin: (u: HajiraUser) => v
     try {
       const res = await api<{ user: HajiraUser }>('/api/auth/login', {
         method: 'POST',
-        body: { name: cleanName, phone: cleanPhone, role },
+        body: {
+          name: cleanName,
+          phone: cleanPhone,
+          password,
+          role,
+          teacherKey: role === 'TEACHER' ? teacherKey.trim() : undefined,
+        },
       })
       persistUser(res.user)
       ok(
         `Welcome, ${res.user.name}!`,
-        role === 'TEACHER' ? 'Signed in as teacher' : 'Signed in as student'
+        res.user.role === 'TEACHER' ? 'Signed in as teacher' : 'Signed in as student'
       )
       onLogin(res.user)
     } catch (e) {
@@ -128,17 +140,52 @@ export default function LoginScreen({ onLogin }: { onLogin: (u: HajiraUser) => v
                 required
               />
             </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="hajira-password">Password</Label>
+              <Input
+                id="hajira-password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={role === 'TEACHER' ? 'Create or enter your password' : 'Your password'}
+                autoComplete={role === 'TEACHER' ? 'new-password' : 'current-password'}
+                minLength={4}
+                required
+              />
+            </div>
+            {role === 'TEACHER' ? (
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="hajira-teacher-key">Teacher key (new accounts)</Label>
+                <Input
+                  id="hajira-teacher-key"
+                  value={teacherKey}
+                  onChange={(e) => setTeacherKey(e.target.value)}
+                  placeholder="Provided by your department"
+                  autoComplete="off"
+                />
+                <p className="text-xs text-label">
+                  Only needed the first time — it keeps students from creating teacher accounts.
+                </p>
+              </div>
+            ) : null}
             <Button
               type="submit"
               disabled={loading}
               className="btn-3d btn-ink mt-1 h-11 w-full text-base font-semibold"
             >
-              {loading ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : 'Sign in'}
+              {loading ? (
+                <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+              ) : role === 'TEACHER' ? (
+                'Continue as teacher'
+              ) : (
+                'Sign in'
+              )}
             </Button>
           </form>
 
           <p className="mt-4 text-center text-xs text-label">
-            Demo — sign in with any name and phone number
+            First time here? Your account is created automatically — this password protects it from
+            then on.
           </p>
         </CardContent>
       </Card>

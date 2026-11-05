@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
   const durationSec = Math.min(Math.max(Number(body?.durationSec) || 120, 30), 600)
   const radiusM = Math.min(Math.max(Number(body?.radiusM) || 100, 30), 1000)
   let requireGps = !!body?.requireGps
+  const requireCode = body?.requireCode === undefined ? true : !!body.requireCode
   const lat = body?.lat == null ? null : Number(body.lat)
   const lng = body?.lng == null ? null : Number(body.lng)
 
@@ -48,6 +49,7 @@ export async function POST(req: NextRequest) {
       lng,
       radiusM,
       requireGps,
+      requireCode,
       durationSec,
       endsAt,
       status: 'ACTIVE',

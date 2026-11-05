@@ -8,23 +8,27 @@ datasource db {
 }
 
 model User {
-  id        String       @id @default(cuid())
-  phone     String       @unique
-  name      String
-  role      String // TEACHER | STUDENT
-  deviceId  String? // device binding (one device per student)
-  createdAt DateTime     @default(now())
-  teaching  Class[]      @relation("TeacherClasses")
+  id           String   @id @default(cuid())
+  phone        String   @unique
+  name         String
+  role         String // TEACHER | STUDENT
+  passwordHash String? // scrypt hash — set on signup/first claim
+  deviceId     String? // device binding (one device per student)
+  createdAt    DateTime @default(now())
+
+  teaching    Class[]      @relation("TeacherClasses")
   memberships Membership[]
-  checkIns  CheckIn[]
+  checkIns    CheckIn[]
 }
 
 model Class {
-  id          String       @id @default(cuid())
-  name        String
-  code        String       @unique
-  teacherId   String
-  teacher     User         @relation("TeacherClasses", fields: [teacherId], references: [id])
+  id        String @id @default(cuid())
+  name      String
+  code      String @unique
+  teacherId String
+  threshold Int    @default(70) // exam eligibility % for this class
+  teacher   User   @relation("TeacherClasses", fields: [teacherId], references: [id])
+
   memberships Membership[]
   sessions    Session[]
   createdAt   DateTime     @default(now())
@@ -42,17 +46,18 @@ model Membership {
 }
 
 model Session {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   classId     String
-  class       Class     @relation(fields: [classId], references: [id])
-  status      String    @default("ACTIVE") // ACTIVE | CLOSED
+  class       Class    @relation(fields: [classId], references: [id])
+  status      String   @default("ACTIVE") // ACTIVE | CLOSED
   secret      String // HMAC secret for rotating QR/PIN
   lat         Float?
   lng         Float?
-  radiusM     Int       @default(100)
-  requireGps  Boolean   @default(true)
-  durationSec Int       @default(120)
-  startedAt   DateTime  @default(now())
+  radiusM     Int      @default(100)
+  requireGps  Boolean  @default(true)
+  requireCode Boolean  @default(true) // rotating QR/PIN required for check-in
+  durationSec Int      @default(120)
+  startedAt   DateTime @default(now())
   endsAt      DateTime
   checkIns    CheckIn[]
 }
