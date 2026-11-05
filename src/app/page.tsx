@@ -14,6 +14,7 @@ import TeacherClassDetail from '@/components/hajira/teacher/class-detail'
 import TeacherLiveSession from '@/components/hajira/teacher/live-session'
 import TeacherReportView from '@/components/hajira/teacher/report-view'
 import StudentHomeView from '@/components/hajira/student/home-view'
+import StudentAnalysisView from '@/components/hajira/student/analysis-view'
 import StudentClassDetail from '@/components/hajira/student/class-detail'
 import StudentClassesView from '@/components/hajira/student/classes-view'
 import StudentProfileView from '@/components/hajira/student/profile-view'
@@ -150,6 +151,16 @@ export default function HajiraPage() {
           }}
         />
       )
+    } else if (studentView === 'analysis') {
+      body = (
+        <StudentAnalysisView
+          reloadKey={reloadKey}
+          onOpenClass={(id) => {
+            setStudentClassId(id)
+            setStudentView('class-detail')
+          }}
+        />
+      )
     } else if (studentView === 'classes') {
       body = (
         <StudentClassesView
@@ -171,6 +182,7 @@ export default function HajiraPage() {
             setStudentClassId(id)
             setStudentView('class-detail')
           }}
+          onGoAnalysis={() => setStudentView('analysis')}
         />
       )
     }

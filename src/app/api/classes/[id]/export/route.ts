@@ -59,6 +59,46 @@ async function GET_impl(
     }
   }
 
+  // Sheet 2 — PRESENT SHEET (the classic attendance register):
+  // rows = students, columns = every session, cells = P / F / A, with totals.
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const dateLabel = (d: Date) => `${d.getDate()} ${MONTHS[d.getMonth()]}`
+
+  // column labels; add a counter when two sessions share the same date
+  const dateCount = new Map<string, number>()
+  const colLabels = sessions.map((s) => {
+    const base = dateLabel(s.startedAt)
+    const n = (dateCount.get(base) ?? 0) + 1
+    dateCount.set(base, n)
+    return n > 1 ? `${base} #${n}` : base
+  })
+  const byStudent = new Map<string, Map<string, string>>()
+  for (const c of checkIns) {
+    if (c.status === 'PRESENT' || c.status === 'FLAGGED') {
+      const row = byStudent.get(c.studentId) ?? new Map<string, string>()
+      row.set(c.sessionId, c.status === 'PRESENT' ? 'P' : 'F')
+      byStudent.set(c.studentId, row)
+    }
+  }
+  const sheetRows = roster.map((m) => {
+    const marks = byStudent.get(m.studentId)
+    const present = presentByStudent.get(m.studentId) ?? 0
+    const flagged = flaggedByStudent.get(m.studentId) ?? 0
+    const pct = total ? Math.round((present / total) * 100) : 0
+    const row: Record<string, string | number> = {
+      Name: m.student.name,
+      Phone: m.student.phone,
+    }
+    sessions.forEach((s, i) => {
+      row[colLabels[i]] = marks?.get(s.id) ?? 'A'
+    })
+    row['P'] = present
+    row['F'] = flagged
+    row['A'] = Math.max(0, total - present - flagged)
+    row['%'] = `${pct}%`
+    return row
+  })
+
   // Sheet 1 — Summary
   const summaryRows = roster.map((m) => {
     const present = presentByStudent.get(m.studentId) ?? 0
@@ -122,6 +162,15 @@ async function GET_impl(
     { Field: 'Exported by', Value: user.name },
   ]
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(info), 'Class Info')
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.json_to_sheet(
+      sheetRows.length
+        ? sheetRows
+        : [{ Name: '—', Note: 'No students yet — the session grid appears here' }]
+    ),
+    'Present Sheet'
+  )
   XLSX.utils.book_append_sheet(
     wb,
     XLSX.utils.json_to_sheet(summaryRows.length ? summaryRows : [{ Name: '—', Note: 'No students yet' }]),

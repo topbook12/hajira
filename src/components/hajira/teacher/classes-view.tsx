@@ -3,7 +3,17 @@
 import * as React from 'react'
 
 import { motion } from 'framer-motion'
-import { BookOpen, Loader2, Plus, Radio, Search, Users } from 'lucide-react'
+import {
+  BookOpen,
+  CheckCircle2,
+  Download,
+  Files,
+  Loader2,
+  Plus,
+  Radio,
+  Search,
+  Users,
+} from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -18,13 +28,40 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
-import { api, type TeacherClassInfo, type TeacherTotals } from '@/lib/hajira-client'
+import {
+  api,
+  downloadBlob,
+  type TeacherClassInfo,
+  type TeacherTotals,
+} from '@/lib/hajira-client'
 import { CodeChip, EmptyState, PulsingDot, useHajiraToasts } from '@/components/hajira/shared'
 
-function StatCard({ label, value }: { label: string; value: string | number }) {
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  tone = 'ink',
+}: {
+  label: string
+  value: string | number
+  icon: React.ComponentType<{ className?: string }>
+  tone?: 'ink' | 'navy' | 'gold' | 'green'
+}) {
+  const chip =
+    tone === 'navy'
+      ? 'bg-navy/10 text-navy'
+      : tone === 'gold'
+        ? 'bg-gold/30 text-ink'
+        : tone === 'green'
+          ? 'bg-green/10 text-green'
+          : 'bg-ink/8 text-ink'
   return (
-    <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border/60 bg-card px-2 py-3 text-center shadow-sm">
+    <div className="stat-card-premium flex flex-col items-center gap-1 rounded-xl border border-border/60 bg-card px-2 py-3.5 text-center shadow-sm">
+      <span className={`flex h-7 w-7 items-center justify-center rounded-lg ${chip}`}>
+        <Icon className="h-4 w-4" aria-hidden />
+      </span>
       <span className="font-display text-2xl font-bold tabular-nums text-heading">{value}</span>
       <span className="text-[11px] font-medium leading-tight text-label">{label}</span>
     </div>
@@ -47,6 +84,8 @@ export default function TeacherClassesView({
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [newName, setNewName] = React.useState('')
   const [creating, setCreating] = React.useState(false)
+  const [exportingAll, setExportingAll] = React.useState(false)
+  const [sheetBusyId, setSheetBusyId] = React.useState<string | null>(null)
   const loadedOnce = React.useRef(false)
 
   const load = React.useCallback(async () => {
@@ -92,6 +131,38 @@ export default function TeacherClassesView({
     }
   }
 
+  /** One class → Excel workbook (Info, Present Sheet grid, Summary, Sessions, Log) */
+  const downloadSheet = async (c: TeacherClassInfo) => {
+    setSheetBusyId(c.id)
+    try {
+      const res = await fetch(`/api/classes/${c.id}/export`)
+      if (!res.ok) throw new Error('Export failed')
+      const blob = await res.blob()
+      downloadBlob(blob, `Hajira_${c.name.replace(/[^a-zA-Z0-9-_ ]/g, '').trim().replace(/\s+/g, '-') || 'class'}_${new Date().toISOString().slice(0, 10)}.xlsx`)
+      ok('Present sheet downloaded', `${c.name} — full attendance workbook inside`)
+    } catch (e) {
+      err('Could not export the sheet', e instanceof Error ? e.message : undefined)
+    } finally {
+      setSheetBusyId(null)
+    }
+  }
+
+  /** Every class → one workbook with an Overview sheet + a sheet per class */
+  const downloadAll = async () => {
+    setExportingAll(true)
+    try {
+      const res = await fetch('/api/classes/export-all')
+      if (!res.ok) throw new Error('Export failed')
+      const blob = await res.blob()
+      downloadBlob(blob, `Hajira_All_Classes_${new Date().toISOString().slice(0, 10)}.xlsx`)
+      ok('All classes exported', 'One present sheet per class + overview')
+    } catch (e) {
+      err('Could not export all classes', e instanceof Error ? e.message : undefined)
+    } finally {
+      setExportingAll(false)
+    }
+  }
+
   const q = search.trim().toLowerCase()
   const visible = (classes ?? []).filter(
     (c) => !q || c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q)
@@ -102,15 +173,17 @@ export default function TeacherClassesView({
       {/* Semester at a glance */}
       <div className="grid grid-cols-4 gap-2.5 sm:max-w-xl">
         {totals === undefined ? (
-          [0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[74px] rounded-xl" />)
+          [0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[92px] rounded-xl" />)
         ) : (
           <>
-            <StatCard label="Classes" value={totals.classes} />
-            <StatCard label="Students" value={totals.students} />
-            <StatCard label="Sessions" value={totals.sessions} />
+            <StatCard label="Classes" value={totals.classes} icon={BookOpen} tone="ink" />
+            <StatCard label="Students" value={totals.students} icon={Users} tone="navy" />
+            <StatCard label="Sessions" value={totals.sessions} icon={Radio} tone="gold" />
             <StatCard
               label="Avg attendance"
               value={`${totals.avgPct}%`}
+              icon={CheckCircle2}
+              tone="green"
             />
           </>
         )}
@@ -121,10 +194,28 @@ export default function TeacherClassesView({
           <h2 className="font-display text-2xl text-heading">My Classes</h2>
           <p className="text-sm text-label">Open a class to start an attendance session</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)} className="btn-3d btn-ink font-semibold">
-          <Plus className="h-4 w-4" aria-hidden />
-          New class
-        </Button>
+        <div className="flex items-center gap-2">
+          {classes && classes.length > 0 ? (
+            <Button
+              variant="outline"
+              onClick={downloadAll}
+              disabled={exportingAll}
+              className="border-border font-semibold text-ink hover:bg-secondary"
+            >
+              {exportingAll ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Files className="h-4 w-4" aria-hidden />
+              )}
+              <span className="hidden sm:inline">Download all sheets</span>
+              <span className="sm:hidden">All sheets</span>
+            </Button>
+          ) : null}
+          <Button onClick={() => setDialogOpen(true)} className="btn-3d btn-ink font-semibold">
+            <Plus className="h-4 w-4" aria-hidden />
+            New class
+          </Button>
+        </div>
       </div>
 
       {classes !== null && classes.length > 3 ? (
@@ -194,14 +285,25 @@ export default function TeacherClassesView({
                       <Radio className="h-4 w-4 text-label" aria-hidden />
                       {c.totalSessions}
                     </span>
-                    <span
-                      className={
-                        'ml-auto font-mono text-sm font-bold ' +
-                        (c.avgPct >= 70 ? 'text-green' : 'text-amber-600')
-                      }
-                    >
-                      {c.avgPct}%
-                    </span>
+                  </div>
+
+                  <div>
+                    <div className="mb-1 flex items-center justify-between text-xs">
+                      <span className="text-label">Class average</span>
+                      <span
+                        className={
+                          'font-mono text-sm font-bold ' +
+                          (c.avgPct >= 70 ? 'text-green' : 'text-gold-deep')
+                        }
+                      >
+                        {c.avgPct}%
+                      </span>
+                    </div>
+                    <Progress
+                      value={c.avgPct}
+                      className={c.avgPct >= 70 ? 'h-2 [&>div]:bg-green' : 'h-2 [&>div]:bg-gold-deep'}
+                      aria-label={`Average attendance ${c.avgPct}%`}
+                    />
                   </div>
 
                   <div className="mt-auto flex gap-2 pt-1">
@@ -214,6 +316,21 @@ export default function TeacherClassesView({
                       className="h-10 flex-1 border-border hover:bg-secondary"
                     >
                       Report
+                    </Button>
+                    <Button
+                      onClick={() => downloadSheet(c)}
+                      disabled={sheetBusyId === c.id}
+                      variant="outline"
+                      size="icon"
+                      aria-label={`Download present sheet for ${c.name}`}
+                      title="Download present sheet (Excel)"
+                      className="h-10 w-10 shrink-0 border-border text-ink hover:bg-secondary"
+                    >
+                      {sheetBusyId === c.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                      ) : (
+                        <Download className="h-4 w-4" aria-hidden />
+                      )}
                     </Button>
                   </div>
                 </CardContent>

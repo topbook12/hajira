@@ -38,7 +38,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import { api, getSocket, getPosition, type TeacherClassDetailData } from '@/lib/hajira-client'
+import { api, downloadBlob, getSocket, getPosition, type TeacherClassDetailData } from '@/lib/hajira-client'
 import TimetableEditor from '@/components/hajira/teacher/timetable-editor'
 import {
   fmtDateTime,
@@ -126,15 +126,11 @@ export default function TeacherClassDetail({
       const res = await fetch(`/api/classes/${classId}/export`)
       if (!res.ok) throw new Error('Export failed')
       const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `Hajira_${data?.cls.name.replace(/\s+/g, '-') ?? 'class'}.xlsx`
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
-      ok('Excel downloaded', 'Summary, sessions and full check-in log inside')
+      downloadBlob(
+        blob,
+        `Hajira_${data?.cls.name.replace(/[^a-zA-Z0-9-_ ]/g, '').trim().replace(/\s+/g, '-') || 'class'}_${new Date().toISOString().slice(0, 10)}.xlsx`
+      )
+      ok('Present sheet downloaded', 'Grid, summary, sessions and check-in log inside')
     } catch (e) {
       err('Could not export Excel', e instanceof Error ? e.message : undefined)
     } finally {

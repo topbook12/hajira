@@ -28,7 +28,11 @@ async function GET_impl(
       include: { student: { select: { id: true, name: true, phone: true } } },
       orderBy: { createdAt: 'asc' },
     }),
-    db.session.findMany({ where: { classId: id }, select: { id: true } }),
+    db.session.findMany({
+      where: { classId: id },
+      orderBy: { startedAt: 'asc' },
+      select: { id: true, startedAt: true, status: true },
+    }),
   ])
 
   const total = sessions.length
@@ -39,12 +43,25 @@ async function GET_impl(
   })
 
   const stats = new Map<string, { present: number; flagged: number }>()
+  // matrix[studentId][sessionId] = 'PRESENT' | 'FLAGGED' — the present-sheet grid
+  const matrix: Record<string, Record<string, string>> = {}
   for (const c of checkIns) {
     if (!sessionIds.has(c.sessionId)) continue
     const s = stats.get(c.studentId) || { present: 0, flagged: 0 }
     if (c.status === 'PRESENT') s.present++
     else if (c.status === 'FLAGGED') s.flagged++
     stats.set(c.studentId, s)
+    if (c.status === 'PRESENT' || c.status === 'FLAGGED') {
+      ;(matrix[c.studentId] ??= {})[c.sessionId] = c.status
+    }
+  }
+
+  // present count per session (for the grid footer)
+  const presentPerSession = new Map<string, number>()
+  for (const c of checkIns) {
+    if (c.status === 'PRESENT') {
+      presentPerSession.set(c.sessionId, (presentPerSession.get(c.sessionId) ?? 0) + 1)
+    }
   }
 
   const rows = roster.map((m) => {
@@ -69,6 +86,13 @@ async function GET_impl(
     totalSessions: total,
     threshold,
     rows,
+    sessions: sessions.map((s) => ({
+      id: s.id,
+      startedAt: s.startedAt,
+      status: s.status,
+      presentCount: presentPerSession.get(s.id) ?? 0,
+    })),
+    matrix,
   })
 }
 

@@ -3,7 +3,7 @@
 import * as React from 'react'
 
 import { motion } from 'framer-motion'
-import { CalendarDays, CheckCircle2, Radio, Users } from 'lucide-react'
+import { CalendarDays, CheckCircle2, Flame, Radio, TrendingUp, Users } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -17,7 +17,9 @@ import {
   type TodaySlot,
 } from '@/lib/hajira-client'
 import {
+  AttendanceRing,
   EmptyState,
+  LoadErrorCard,
   mmss,
   PulsingDot,
   timeRange,
@@ -44,43 +46,28 @@ function SessionTimer({ endsAt }: { endsAt: string }) {
   )
 }
 
-function StatCard({
-  label,
-  value,
-  tone = 'default',
-}: {
-  label: string
-  value: string
-  tone?: 'default' | 'good' | 'warn'
-}) {
-  return (
-    <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border/60 bg-card px-2 py-3 text-center shadow-sm">
-      <span
-        className={
-          'font-display text-2xl font-bold tabular-nums ' +
-          (tone === 'good' ? 'text-green' : tone === 'warn' ? 'text-amber-600' : 'text-heading')
-        }
-      >
-        {value}
-      </span>
-      <span className="text-[11px] font-medium leading-tight text-label">{label}</span>
-    </div>
-  )
+function greeting(): string {
+  const h = new Date().getHours()
+  if (h < 12) return 'Good morning'
+  if (h < 17) return 'Good afternoon'
+  return 'Good evening'
 }
 
 export default function StudentHomeView({
   user,
   reloadKey,
   onOpenClass,
-  onTotals,
+  onGoAnalysis,
 }: {
   user: HajiraUser
   reloadKey: number
   onOpenClass: (classId: string) => void
-  onTotals?: (totals: StudentTotals | undefined) => void
+  onGoAnalysis?: () => void
 }) {
   const { err } = useHajiraToasts()
   const [totals, setTotals] = React.useState<StudentTotals | undefined>(undefined)
+  const [meFailed, setMeFailed] = React.useState(false)
+  const [meError, setMeError] = React.useState<string | undefined>(undefined)
   const [sessions, setSessions] = React.useState<ActiveSessionInfo[] | null>(null)
   const [today, setToday] = React.useState<TodaySlot[] | null>(null)
   const [checkedMap, setCheckedMap] = React.useState<Record<string, boolean>>({})
@@ -88,6 +75,7 @@ export default function StudentHomeView({
   const loadedOnce = React.useRef(false)
 
   const load = React.useCallback(async () => {
+    setMeFailed(false)
     // Each feed succeeds or fails INDEPENDENTLY — one flaky response must
     // never blank the whole dashboard (the mobile "data won't load" trap).
     const [meR, activeR, todayR] = await Promise.allSettled([
@@ -98,8 +86,9 @@ export default function StudentHomeView({
 
     if (meR.status === 'fulfilled') {
       setTotals(meR.value.totals)
-      onTotals?.(meR.value.totals)
     } else {
+      setMeFailed(true)
+      setMeError(meR.reason instanceof Error ? meR.reason.message : undefined)
       // toast only on the FIRST failure — never spam every 10s poll
       if (!loadedOnce.current) {
         err('Data did not load', meR.reason instanceof Error ? meR.reason.message : undefined)
@@ -131,7 +120,7 @@ export default function StudentHomeView({
       })
     )
     setCheckedMap(Object.fromEntries(entries))
-  }, [err, onTotals])
+  }, [err])
 
   React.useEffect(() => {
     load()
@@ -144,34 +133,64 @@ export default function StudentHomeView({
   }, [load])
 
   const liveCount = (sessions ?? []).filter((s) => !checkedMap[s.id]).length
+  const onTrack = (totals?.overallPct ?? 0) >= 70
 
   return (
     <section aria-label="Student home" className="flex flex-col gap-6">
-      {/* My attendance at a glance */}
-      <div className="grid grid-cols-3 gap-2.5 sm:max-w-md">
-        {totals === undefined ? (
-          <>
-            <Skeleton className="h-[74px] rounded-xl" />
-            <Skeleton className="h-[74px] rounded-xl" />
-            <Skeleton className="h-[74px] rounded-xl" />
-          </>
-        ) : (
-          <>
-            <StatCard
-              label="Overall attendance"
-              value={`${totals.overallPct}%`}
-              tone={totals.overallPct >= 70 ? 'good' : totals.totalSessions > 0 ? 'warn' : 'default'}
-            />
-            <StatCard
-              label="Sessions attended"
-              value={`${totals.attendedSessions}/${totals.totalSessions}`}
-            />
-            <StatCard label="Classes joined" value={String(totals.classes)} />
-          </>
-        )}
-      </div>
+      {/* ===== Hero — attendance at a glance ===== */}
+      {totals === undefined && !meFailed ? (
+        <Skeleton className="h-[168px] rounded-2xl" />
+      ) : meFailed && totals === undefined ? (
+        <LoadErrorCard message={meError} onRetry={load} title="Your attendance did not load" />
+      ) : totals ? (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <div className="corner-glow relative overflow-hidden rounded-2xl bg-ink p-5 text-cream shadow-lg shadow-ink/25 sm:p-6">
+            <div className="flex flex-col items-center gap-5 sm:flex-row sm:gap-7">
+              <AttendanceRing pct={totals.overallPct} tone={onTrack ? 'green' : 'gold'} />
 
-      {/* Active sessions */}
+              <div className="min-w-0 flex-1 text-center sm:text-left">
+                <p className="text-sm font-medium text-cream/70">
+                  {greeting()}, <span className="font-semibold text-cream">{user.name}</span>
+                </p>
+                <h2 className="mt-1 font-display text-2xl leading-snug text-cream sm:text-3xl">
+                  {totals.totalSessions === 0
+                    ? 'Your attendance journey starts here'
+                    : onTrack
+                      ? 'You are on track — keep it up!'
+                      : 'You are below the safe line'}
+                </h2>
+
+                <div className="mt-3.5 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-cream/10 px-3 py-1.5 text-xs font-semibold">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-gold" aria-hidden />
+                    {totals.attendedSessions}/{totals.totalSessions} sessions
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-cream/10 px-3 py-1.5 text-xs font-semibold">
+                    <Users className="h-3.5 w-3.5 text-gold" aria-hidden />
+                    {totals.classes} {totals.classes === 1 ? 'class' : 'classes'}
+                  </span>
+                  {onGoAnalysis ? (
+                    <button
+                      type="button"
+                      onClick={onGoAnalysis}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-full bg-gold px-3.5 text-xs font-bold text-ink shadow-sm transition-transform hover:scale-[1.03] active:scale-95"
+                    >
+                      <TrendingUp className="h-3.5 w-3.5" aria-hidden />
+                      See my analysis
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      ) : null}
+
+      {/* ===== Live sessions ===== */}
       <div className="flex flex-col gap-3">
         <h2 className="flex items-center gap-2 font-display text-2xl text-heading">
           <Radio className="h-5 w-5 text-ink" aria-hidden />
@@ -236,7 +255,7 @@ export default function StudentHomeView({
         )}
       </div>
 
-      {/* Today's classes (Phase 2 — Timetable) */}
+      {/* ===== Today's classes ===== */}
       <div className="flex flex-col gap-3">
         <h2 className="flex items-center gap-2 font-display text-2xl text-heading">
           <CalendarDays className="h-5 w-5 text-ink" aria-hidden />
@@ -283,6 +302,18 @@ export default function StudentHomeView({
           </ul>
         )}
       </div>
+
+      {/* Streak strip */}
+      {totals && totals.attendedSessions > 0 ? (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-cream-soft/60 px-4 py-3">
+          <span className="flex items-center gap-2 text-sm text-body">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gold/25">
+              <Flame className="h-4.5 w-4.5 text-gold-deep" aria-hidden />
+            </span>
+            Attend every session to grow your streak — analysis tracks it for you.
+          </span>
+        </div>
+      ) : null}
 
       {/* Check-in dialog */}
       <CheckinDialog

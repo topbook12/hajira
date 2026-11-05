@@ -25,7 +25,7 @@ import {
   type StudentClassInfo,
   type StudentTotals,
 } from '@/lib/hajira-client'
-import { EmptyState, useHajiraToasts } from '@/components/hajira/shared'
+import { EmptyState, LoadErrorCard, useHajiraToasts } from '@/components/hajira/shared'
 
 /**
  * Student "Classes" tab — every enrolled class with live attendance %,
@@ -42,17 +42,24 @@ export default function StudentClassesView({
 }) {
   const { ok, err } = useHajiraToasts()
   const [classes, setClasses] = React.useState<StudentClassInfo[] | null>(null)
+  const [failed, setFailed] = React.useState(false)
+  const [failMsg, setFailMsg] = React.useState<string | undefined>(undefined)
   const [joinOpen, setJoinOpen] = React.useState(false)
   const [joinCode, setJoinCode] = React.useState('')
   const [joining, setJoining] = React.useState(false)
   const loadedOnce = React.useRef(false)
 
   const load = React.useCallback(async () => {
+    setFailed(false)
     try {
       const data = await api<{ classes: StudentClassInfo[]; totals?: StudentTotals }>('/api/me')
       setClasses(data.classes ?? [])
       onJoined?.(data.totals)
     } catch (e) {
+      // Surface an honest error card with Try-again — NEVER decay into the
+      // "you have no classes" empty state on a flaky mobile connection.
+      setFailed(true)
+      setFailMsg(e instanceof Error ? e.message : undefined)
       setClasses((prev) => prev ?? [])
       if (!loadedOnce.current) {
         err('Classes did not load', e instanceof Error ? e.message : undefined)
@@ -113,6 +120,8 @@ export default function StudentClassesView({
           <Skeleton className="h-36 rounded-xl" />
           <Skeleton className="h-36 rounded-xl" />
         </div>
+      ) : failed && classes.length === 0 ? (
+        <LoadErrorCard message={failMsg} onRetry={load} title="Your classes did not load" />
       ) : classes.length === 0 ? (
         <EmptyState
           icon={BookOpen}

@@ -172,6 +172,72 @@ export type ReportData = {
     pct: number
     eligible: boolean
   }[]
+  /** Present-sheet grid: one column per session */
+  sessions: { id: string; startedAt: string; status: string; presentCount: number }[]
+  /** studentId -> sessionId -> 'PRESENT' | 'FLAGGED' (missing = absent) */
+  matrix: Record<string, Record<string, string>>
+}
+
+/* ----------------------------- student analytics -------------------------- */
+
+export type StudentAnalytics = {
+  totals: {
+    classes: number
+    totalSessions: number
+    attendedSessions: number
+    flaggedSessions: number
+    overallPct: number
+    currentStreak: number
+    bestStreak: number
+  }
+  perClass: {
+    id: string
+    name: string
+    code: string
+    teacherName: string
+    total: number
+    present: number
+    flagged: number
+    absent: number
+    pct: number
+    rank: number | null
+    classSize: number
+  }[]
+  /** Chronological, most recent last — for the trend chart */
+  timeline: { id: string; at: string; className: string; status: 'PRESENT' | 'FLAGGED' | null }[]
+  /** Most recent check-ins, newest first */
+  recent: {
+    id: string
+    at: string
+    className: string
+    status: CheckInStatus
+    method: string
+    distanceM: number | null
+    gpsOk: boolean
+    bioVerified: boolean
+  }[]
+}
+
+/* --------------------------- what-if (eligibility) ------------------------- */
+
+/**
+ * How many consecutive sessions the student can still MISS while staying at
+ * or above `threshold` % (0 = already at/under the line).
+ */
+export function sessionsCanMiss(present: number, total: number, threshold: number): number {
+  const t = Math.min(99, Math.max(1, threshold)) / 100
+  const surplus = present - t * total
+  return surplus > 0 ? Math.floor(surplus / t) : 0
+}
+
+/**
+ * How many sessions in a row the student must ATTEND to climb back to
+ * `threshold` % (0 = already at/above it).
+ */
+export function sessionsNeeded(present: number, total: number, threshold: number): number {
+  const t = Math.min(99, Math.max(1, threshold)) / 100
+  const deficit = t * total - present
+  return deficit > 0 ? Math.ceil(deficit / (1 - t)) : 0
 }
 
 /* ------------------------------- timetable -------------------------------- */
@@ -250,17 +316,42 @@ export function getDeviceId(): string {
 
 /* --------------------------------- fetch --------------------------------- */
 
-export async function api<T>(
-  path: string,
-  opts?: { method?: string; body?: unknown }
-): Promise<T> {
-  const res = await fetch(path, {
-    method: opts?.method ?? 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: opts?.body !== undefined ? JSON.stringify(opts.body) : undefined,
-  })
+/**
+ * Mobile-grade fetch layer.
+ *
+ * Phones on cellular networks drop/hang requests far more often than
+ * desktops — and a hung request used to leave a dashboard skeleton on
+ * screen forever, which students read as "my data is gone". So:
+ *   1. every request has a hard timeout (AbortController)
+ *   2. safe GETs automatically retry once (read-only, idempotent)
+ *   3. failures carry a plain-language message the UI can show with a
+ *      Try-again button — never a silent empty state
+ */
+const FETCH_TIMEOUT_MS = 12_000
+
+type ApiOpts = { method?: string; body?: unknown; timeoutMs?: number }
+
+async function rawFetch<T>(path: string, opts: ApiOpts): Promise<T> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? FETCH_TIMEOUT_MS)
+  let res: Response
+  try {
+    res = await fetch(path, {
+      method: opts.method ?? 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+      credentials: 'same-origin',
+      signal: ctrl.signal,
+    })
+  } catch (e) {
+    clearTimeout(timer)
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      throw new Error('The request timed out — check your internet and try again')
+    }
+    throw new Error('No internet connection — check your mobile data or Wi-Fi')
+  }
+  clearTimeout(timer)
+
   if (!res.ok) {
     // Expired/invalid session cookie -> drop cached identity so the app
     // returns to the login screen on the next render.
@@ -271,9 +362,46 @@ export async function api<T>(
       }
     }
     const data = (await res.json().catch(() => null)) as { error?: string } | null
-    throw new Error(data?.error ?? 'Something went wrong')
+    const msg =
+      data?.error ??
+      (res.status >= 502 && res.status <= 504
+        ? 'The server is waking up — try again in a moment'
+        : 'Something went wrong — try again')
+    const err = new Error(msg) as Error & { status?: number }
+    err.status = res.status
+    throw err
   }
   return (await res.json()) as T
+}
+
+export async function api<T>(path: string, opts?: ApiOpts): Promise<T> {
+  const method = opts?.method ?? 'GET'
+  const isGet = method === 'GET'
+  try {
+    return await rawFetch<T>(path, opts ?? {})
+  } catch (e) {
+    // One automatic retry for transient network failures on read-only calls.
+    // HTTP 4xx errors are real answers — never retried.
+    const status = (e as Error & { status?: number }).status
+    const transient = status === undefined || status === 503 || (status >= 502 && status <= 504)
+    if (isGet && transient) {
+      await new Promise((r) => setTimeout(r, 500))
+      return rawFetch<T>(path, opts ?? {})
+    }
+    throw e
+  }
+}
+
+/** Trigger a browser download for a blob (Excel exports etc.) */
+export function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
 }
 
 /** Clear the server session cookie + local cache. */

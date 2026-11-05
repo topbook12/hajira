@@ -2,10 +2,11 @@
 
 import * as React from 'react'
 
-import { AlertTriangle, Copy } from 'lucide-react'
+import { AlertTriangle, CloudOff, Copy, RefreshCw } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 
@@ -218,6 +219,103 @@ export function EmptyState({
       <Icon className="h-10 w-10 text-border" aria-hidden />
       <p className="text-sm font-medium text-body">{title}</p>
       {hint ? <p className="max-w-sm text-xs text-label">{hint}</p> : null}
+    </div>
+  )
+}
+
+/**
+ * Honest load-failure card with a Try-again button.
+ *
+ * The mobile fix: a failed fetch must NEVER decay into an empty state
+ * ("you have no classes") — the student would think their data is gone.
+ * This card says exactly what happened and offers one-tap recovery.
+ */
+export function LoadErrorCard({
+  message,
+  onRetry,
+  title = 'Your data did not load',
+}: {
+  message?: string
+  onRetry: () => void
+  title?: string
+}) {
+  return (
+    <div
+      role="alert"
+      className="flex flex-col items-center justify-center gap-2.5 rounded-xl border border-rust/30 bg-rust/5 px-6 py-8 text-center"
+    >
+      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-rust/10">
+        <CloudOff className="h-5 w-5 text-rust" aria-hidden />
+      </span>
+      <p className="text-sm font-semibold text-heading">{title}</p>
+      {message ? <p className="max-w-sm text-xs text-label">{message}</p> : null}
+      <Button
+        onClick={onRetry}
+        size="sm"
+        className="btn-3d btn-ink mt-1 h-10 gap-2 px-5 font-semibold"
+      >
+        <RefreshCw className="h-4 w-4" aria-hidden />
+        Try again
+      </Button>
+    </div>
+  )
+}
+
+/**
+ * Circular attendance gauge — the hero visual of the student dashboard.
+ * Gold stroke on a soft track, % number in the middle.
+ */
+export function AttendanceRing({
+  pct,
+  size = 104,
+  stroke = 9,
+  tone,
+  label = 'attendance',
+}: {
+  pct: number
+  size?: number
+  stroke?: number
+  tone?: 'gold' | 'green' | 'rust'
+  label?: string
+}) {
+  const clamped = Math.max(0, Math.min(100, pct))
+  const r = (size - stroke) / 2
+  const c = 2 * Math.PI * r
+  const color =
+    tone === 'green' ? 'var(--green-light)' : tone === 'rust' ? 'var(--rust)' : 'var(--gold)'
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90" aria-hidden>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="color-mix(in srgb, currentColor 18%, transparent)"
+          strokeWidth={stroke}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={c - (clamped / 100) * c}
+          style={{ transition: 'stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1)' }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center" aria-hidden>
+        <span className="font-display text-2xl font-semibold tabular-nums leading-none">
+          {clamped}%
+        </span>
+        <span className="mt-0.5 text-[10px] font-medium uppercase tracking-wide opacity-60">
+          {label}
+        </span>
+      </div>
+      <span className="sr-only">{`Attendance ${clamped}%`}</span>
     </div>
   )
 }

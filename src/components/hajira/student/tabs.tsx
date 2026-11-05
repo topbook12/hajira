@@ -1,13 +1,14 @@
 'use client'
 
-import { BookOpen, Home, UserRound } from 'lucide-react'
+import { BarChart3, BookOpen, Home, UserRound } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
-export type StudentTab = 'home' | 'classes' | 'profile'
+export type StudentTab = 'home' | 'analysis' | 'classes' | 'profile'
 
 const TABS: { key: StudentTab; label: string; icon: typeof Home }[] = [
   { key: 'home', label: 'Home', icon: Home },
+  { key: 'analysis', label: 'Analysis', icon: BarChart3 },
   { key: 'classes', label: 'Classes', icon: BookOpen },
   { key: 'profile', label: 'Profile', icon: UserRound },
 ]
@@ -59,7 +60,7 @@ export default function StudentTabs({
         aria-label="Student sections"
         className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 backdrop-blur-md sm:hidden"
       >
-        <div className="mx-auto grid max-w-md grid-cols-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5">
+        <div className="mx-auto grid max-w-md grid-cols-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5">
           {TABS.map((t) => {
             const active = view === t.key
             return (
