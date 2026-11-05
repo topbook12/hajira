@@ -38,43 +38,43 @@ import {
 } from '@/lib/hajira-client'
 import { CodeChip, EmptyState, PulsingDot, useHajiraToasts } from '@/components/hajira/shared'
 
-function StatCard({
+/** One dark-hero stat cell (icon + value + label, cream on peppercorn) */
+function HeroStat({
   label,
   value,
   icon: Icon,
-  tone = 'ink',
 }: {
   label: string
   value: string | number
   icon: React.ComponentType<{ className?: string }>
-  tone?: 'ink' | 'navy' | 'gold' | 'green'
 }) {
-  const chip =
-    tone === 'navy'
-      ? 'bg-navy/10 text-navy'
-      : tone === 'gold'
-        ? 'bg-gold/30 text-ink'
-        : tone === 'green'
-          ? 'bg-green/10 text-green'
-          : 'bg-ink/8 text-ink'
   return (
-    <div className="stat-card-premium flex flex-col items-center gap-1 rounded-xl border border-border/60 bg-card px-2 py-3.5 text-center shadow-sm">
-      <span className={`flex h-7 w-7 items-center justify-center rounded-lg ${chip}`}>
-        <Icon className="h-4 w-4" aria-hidden />
+    <div className="flex flex-col items-center gap-1 rounded-xl bg-cream/[0.06] px-1 py-3 text-center">
+      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gold/20">
+        <Icon className="h-4 w-4 text-gold" aria-hidden />
       </span>
-      <span className="font-display text-2xl font-bold tabular-nums text-heading">{value}</span>
-      <span className="text-[11px] font-medium leading-tight text-label">{label}</span>
+      <span className="font-display text-xl font-bold tabular-nums text-cream sm:text-2xl">
+        {value}
+      </span>
+      <span className="text-[10px] font-medium leading-tight text-cream/60 sm:text-[11px]">
+        {label}
+      </span>
     </div>
   )
 }
 
 export default function TeacherClassesView({
+  userName,
   onOpenClass,
   onOpenReport,
+  onOpenLive,
   reloadKey,
 }: {
+  userName?: string
   onOpenClass: (classId: string) => void
   onOpenReport: (classId: string) => void
+  /** jump straight into a running attendance session */
+  onOpenLive?: (sessionId: string) => void
   reloadKey: number
 }) {
   const { ok, err } = useHajiraToasts()
@@ -167,27 +167,65 @@ export default function TeacherClassesView({
   const visible = (classes ?? []).filter(
     (c) => !q || c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q)
   )
+  const liveClass = (classes ?? []).find((c) => c.activeSessionId) ?? null
 
   return (
     <section aria-label="My classes" className="flex flex-col gap-5">
-      {/* Semester at a glance */}
-      <div className="grid grid-cols-4 gap-2.5 sm:max-w-xl">
-        {totals === undefined ? (
-          [0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[92px] rounded-xl" />)
-        ) : (
-          <>
-            <StatCard label="Classes" value={totals.classes} icon={BookOpen} tone="ink" />
-            <StatCard label="Students" value={totals.students} icon={Users} tone="navy" />
-            <StatCard label="Sessions" value={totals.sessions} icon={Radio} tone="gold" />
-            <StatCard
-              label="Avg attendance"
-              value={`${totals.avgPct}%`}
-              icon={CheckCircle2}
-              tone="green"
-            />
-          </>
-        )}
-      </div>
+      {/* ===== Dashboard hero — semester at a glance ===== */}
+      {totals === undefined ? (
+        <Skeleton className="h-[188px] rounded-2xl" />
+      ) : (
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+          <div className="corner-glow relative overflow-hidden rounded-2xl bg-ink p-5 text-cream shadow-lg shadow-ink/25 sm:p-6">
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-medium text-cream/70">
+                Welcome back{userName ? (
+                  <>
+                    , <span className="font-semibold text-cream">{userName}</span>
+                  </>
+                ) : null}
+              </p>
+              <h2 className="font-display text-2xl leading-snug text-cream sm:text-3xl">
+                Your semester, at a glance
+              </h2>
+            </div>
+            <div className="mt-4 grid grid-cols-4 gap-2 sm:gap-3">
+              <HeroStat label="Classes" value={totals.classes} icon={BookOpen} />
+              <HeroStat label="Students" value={totals.students} icon={Users} />
+              <HeroStat label="Sessions" value={totals.sessions} icon={Radio} />
+              <HeroStat label="Avg attendance" value={`${totals.avgPct}%`} icon={CheckCircle2} />
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* ===== Live now spotlight ===== */}
+      {liveClass?.activeSessionId ? (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-green/30 bg-green/10 px-4 py-3.5"
+        >
+          <div className="flex min-w-0 items-center gap-3">
+            <PulsingDot color="green" />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-green">Attendance is live — {liveClass.name}</p>
+              <p className="text-xs text-label">Students are checking in right now</p>
+            </div>
+          </div>
+          {onOpenLive ? (
+            <Button
+              size="sm"
+              onClick={() => onOpenLive(liveClass.activeSessionId!)}
+              className="btn-3d btn-gold h-9 shrink-0 px-4 font-semibold"
+            >
+              <Radio className="h-4 w-4" aria-hidden />
+              Join live
+            </Button>
+          ) : null}
+        </motion.div>
+      ) : null}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>

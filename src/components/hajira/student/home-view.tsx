@@ -3,7 +3,7 @@
 import * as React from 'react'
 
 import { motion } from 'framer-motion'
-import { CalendarDays, CheckCircle2, Flame, Radio, TrendingUp, Users } from 'lucide-react'
+import { CalendarDays, CheckCircle2, Flame, Globe, Radio, ScanLine, TrendingUp, Users } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -56,11 +56,20 @@ function greeting(): string {
 export default function StudentHomeView({
   user,
   reloadKey,
+  scanSignal = 0,
+  scanHandled = 0,
+  onScanHandled,
   onOpenClass,
   onGoAnalysis,
 }: {
   user: HajiraUser
   reloadKey: number
+  /** bumped when the bottom-bar Scan FAB is tapped — deep-opens the scanner */
+  scanSignal?: number
+  /** highest scanSignal already processed (survives tab remounts, owned by parent) */
+  scanHandled?: number
+  /** parent marks a scan signal as consumed */
+  onScanHandled?: (tick: number) => void
   onOpenClass: (classId: string) => void
   onGoAnalysis?: () => void
 }) {
@@ -72,7 +81,10 @@ export default function StudentHomeView({
   const [today, setToday] = React.useState<TodaySlot[] | null>(null)
   const [checkedMap, setCheckedMap] = React.useState<Record<string, boolean>>({})
   const [checkinSession, setCheckinSession] = React.useState<ActiveSessionInfo | null>(null)
+  const [openScannerNow, setOpenScannerNow] = React.useState(false)
   const loadedOnce = React.useRef(false)
+  const scanSignalRef = React.useRef(scanSignal)
+  const scanHandledRef = React.useRef(scanHandled)
 
   const load = React.useCallback(async () => {
     setMeFailed(false)
@@ -119,12 +131,37 @@ export default function StudentHomeView({
         }
       })
     )
-    setCheckedMap(Object.fromEntries(entries))
-  }, [err])
+    const checked = Object.fromEntries(entries)
+    setCheckedMap(checked)
+
+    /* Scan FAB was tapped — open the first unchecked live session straight
+       into the camera scanner. If nothing is live, say so honestly. */
+    if (scanSignalRef.current > scanHandledRef.current) {
+      scanHandledRef.current = scanSignalRef.current
+      onScanHandled?.(scanSignalRef.current)
+      const target = activeList.find((s) => !checked[s.id])
+      if (target) {
+        setCheckinSession(target)
+        setOpenScannerNow(true)
+      } else if (activeList.length > 0) {
+        err('Already checked in', 'You are checked in to every live session.')
+      } else {
+        err('No live session right now', 'When your teacher starts one, tap Scan again.')
+      }
+    }
+  }, [err, onScanHandled])
+
+  React.useEffect(() => {
+    scanSignalRef.current = scanSignal
+  }, [scanSignal])
+
+  React.useEffect(() => {
+    scanHandledRef.current = scanHandled
+  }, [scanHandled])
 
   React.useEffect(() => {
     load()
-  }, [load, reloadKey])
+  }, [load, reloadKey, scanSignal])
 
   /* poll active sessions every 10s */
   React.useEffect(() => {
@@ -240,12 +277,30 @@ export default function StudentHomeView({
                         </span>
                       </div>
                     ) : (
-                      <Button
-                        onClick={() => setCheckinSession(s)}
-                        className="btn-3d btn-ink h-11 w-full text-base font-bold"
-                      >
-                        Check in now
-                      </Button>
+                      <div className="flex flex-col gap-2">
+                        {!s.requireGps ? (
+                          <p className="flex items-center gap-1.5 text-xs font-medium text-green">
+                            <Globe className="h-3.5 w-3.5" aria-hidden />
+                            Remote check-in OK — works from anywhere
+                          </p>
+                        ) : null}
+                        <Button
+                          onClick={() => {
+                            setOpenScannerNow(false)
+                            setCheckinSession(s)
+                          }}
+                          className="btn-3d btn-ink h-11 w-full text-base font-bold"
+                        >
+                          {s.requireCode === false ? (
+                            'Check in now'
+                          ) : (
+                            <>
+                              <ScanLine className="h-5 w-5" aria-hidden />
+                              Check in — scan QR
+                            </>
+                          )}
+                        </Button>
+                      </div>
                     )}
                   </CardContent>
                 </Card>
@@ -320,8 +375,12 @@ export default function StudentHomeView({
         user={user}
         session={checkinSession}
         open={!!checkinSession}
+        openScannerNow={openScannerNow}
         onOpenChange={(open) => {
-          if (!open) setCheckinSession(null)
+          if (!open) {
+            setCheckinSession(null)
+            setOpenScannerNow(false)
+          }
         }}
         onChecked={load}
       />

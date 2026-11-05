@@ -245,8 +245,10 @@ export default function TeacherLiveSession({
             </div>
             <h2 className="mt-1 truncate font-display text-2xl text-cream">{session.className}</h2>
             <p className="mt-0.5 text-sm text-cream/70">
-              Code: <span className="font-mono">{session.classCode}</span> • Radius: {session.radiusM} m
-              {session.requireGps ? ' • GPS verification on' : ''}
+              Code: <span className="font-mono">{session.classCode}</span> •{' '}
+              {session.requireGps
+                ? `Radius: ${session.radiusM} m • GPS verification on`
+                : 'Remote check-in — no GPS required'}
             </p>
           </div>
           <div className="text-left sm:text-right" aria-live="polite">

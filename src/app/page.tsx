@@ -37,6 +37,11 @@ export default function HajiraPage() {
   // student navigation
   const [studentView, setStudentView] = React.useState<StudentView>('home')
   const [studentClassId, setStudentClassId] = React.useState<string | null>(null)
+  // bumped by the bottom-bar Scan FAB — StudentHomeView picks the live session
+  // and deep-opens the camera scanner. handledTick survives tab remounts so a
+  // tap never re-fires when the student switches back to Home later.
+  const [scanTick, setScanTick] = React.useState(0)
+  const [scanHandledTick, setScanHandledTick] = React.useState(0)
 
   /* read persisted user after mount (no hydration mismatch) */
   React.useEffect(() => {
@@ -66,6 +71,8 @@ export default function HajiraPage() {
     setLiveSessionId(null)
     setReportClassId(null)
     setStudentClassId(null)
+    setScanTick(0)
+    setScanHandledTick(0)
   }
 
   const handleLogout = async () => {
@@ -77,6 +84,8 @@ export default function HajiraPage() {
     setLiveSessionId(null)
     setReportClassId(null)
     setStudentClassId(null)
+    setScanTick(0)
+    setScanHandledTick(0)
   }
 
   const teacherBackToClasses = () => {
@@ -103,6 +112,7 @@ export default function HajiraPage() {
     if (teacherView === 'classes') {
       body = (
         <TeacherClassesView
+          userName={user.name}
           onOpenClass={(id) => {
             setSelectedClassId(id)
             setTeacherView('class-detail')
@@ -110,6 +120,10 @@ export default function HajiraPage() {
           onOpenReport={(id) => {
             setReportClassId(id)
             setTeacherView('report')
+          }}
+          onOpenLive={(sessionId) => {
+            setLiveSessionId(sessionId)
+            setTeacherView('live')
           }}
           reloadKey={reloadKey}
         />
@@ -178,6 +192,9 @@ export default function HajiraPage() {
         <StudentHomeView
           user={user}
           reloadKey={reloadKey}
+          scanSignal={scanTick}
+          scanHandled={scanHandledTick}
+          onScanHandled={setScanHandledTick}
           onOpenClass={(id) => {
             setStudentClassId(id)
             setStudentView('class-detail')
@@ -241,6 +258,10 @@ export default function HajiraPage() {
               onChange={(tab) => {
                 setStudentView(tab)
                 if (tab !== 'class-detail') setStudentClassId(null)
+              }}
+              onScan={() => {
+                setStudentView('home')
+                setScanTick((k) => k + 1)
               }}
             />
           </div>

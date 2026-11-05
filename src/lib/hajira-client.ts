@@ -57,6 +57,10 @@ export type ActiveSessionInfo = {
   className: string
   classCode: string
   teacherName?: string
+  /** GPS geofence enforced — false means students may check in remotely */
+  requireGps: boolean
+  /** Rotating QR / PIN required for this session */
+  requireCode: boolean
   endsAt: string
   durationSec: number
   startedAt: string

@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   CalendarClock,
   Download,
+  Globe,
   KeyRound,
   Loader2,
   Play,
@@ -317,6 +318,19 @@ export default function TeacherClassDetail({
                   Require QR / PIN
                 </Label>
               </div>
+              {requireGps ? (
+                <p className="text-xs leading-relaxed text-label">
+                  Students must be inside the GPS radius to record clean attendance.
+                </p>
+              ) : (
+                <p className="flex items-start gap-1.5 rounded-lg bg-gold/15 px-2.5 py-2 text-xs leading-relaxed text-ink">
+                  <Globe className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span>
+                    <b>Remote mode</b> — students can check in from anywhere (even from home).
+                    Turn this on only when you allow off-campus attendance.
+                  </span>
+                </p>
+              )}
             </div>
           </div>
 
