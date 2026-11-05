@@ -32,10 +32,9 @@ export default function LoginScreen({ onLogin }: { onLogin: (u: HajiraUser) => v
     e.preventDefault()
     const cleanName = name.trim()
     const cleanPhone = phone.replace(/\D/g, '')
-    if (cleanName.length < 2) {
-      err('Enter your name', 'Use at least 2 characters')
-      return
-    }
+    // NOTE: name is NOT required here — returning users sign in with just
+    // phone + password; the server asks for a name only when creating a new
+    // account (its error message guides the user to fill it in).
     if (password.length < 4) {
       err('Enter a password', 'At least 4 characters')
       return
@@ -116,15 +115,13 @@ export default function LoginScreen({ onLogin }: { onLogin: (u: HajiraUser) => v
 
           <form onSubmit={submit} className="mt-6 flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="hajira-name">Full name</Label>
+              <Label htmlFor="hajira-name">Full name (new accounts)</Label>
               <Input
                 id="hajira-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Your full name"
+                placeholder="Needed only the first time"
                 autoComplete="name"
-                required
-                minLength={2}
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -184,8 +181,8 @@ export default function LoginScreen({ onLogin }: { onLogin: (u: HajiraUser) => v
           </form>
 
           <p className="mt-4 text-center text-xs text-label">
-            First time here? Your account is created automatically — this password protects it from
-            then on.
+            First time here? Add your name, and your account is created automatically — this
+            password protects it from then on.
           </p>
         </CardContent>
       </Card>
