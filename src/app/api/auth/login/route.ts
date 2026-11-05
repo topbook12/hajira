@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { badRequest, forbidden } from '@/lib/hajira'
 import { isTransientDbError } from '@/lib/db'
 import { hashPassword, setSessionCookie, verifyPassword } from '@/lib/auth'
+import { clientIp, rateLimit } from '@/lib/rate-limit'
 
 /**
  * Sign in — or create an account on first use (find-or-create with password).
@@ -21,6 +22,18 @@ export async function POST(req: NextRequest) {
     const password = String(body?.password || '')
     const role = body?.role === 'TEACHER' ? 'TEACHER' : 'STUDENT'
     const teacherKey = String(body?.teacherKey || '').trim()
+
+    // Brute-force guard: per-phone AND per-IP budgets. Honest errors tell
+    // the user how long to wait instead of leaving them confused.
+    const byPhone = rateLimit(`login:phone:${phone || 'none'}`, 8, 5 * 60_000)
+    const byIp = rateLimit(`login:ip:${clientIp(req)}`, 40, 5 * 60_000)
+    const blocked = !byPhone.ok ? byPhone : !byIp.ok ? byIp : null
+    if (blocked) {
+      return NextResponse.json(
+        { error: `Too many attempts — try again in ${Math.max(blocked.retryAfterSec, 5)} seconds` },
+        { status: 429, headers: { 'Retry-After': String(Math.max(blocked.retryAfterSec, 5)) } }
+      )
+    }
 
     if (!/^\d{6,15}$/.test(phone)) {
       return badRequest('Enter a valid phone number (digits only)')

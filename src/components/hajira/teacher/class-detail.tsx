@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   CalendarClock,
   Download,
+  KeyRound,
   Loader2,
   Play,
   Radio,
@@ -175,6 +176,23 @@ export default function TeacherClassDetail({
       err('Could not add students', e instanceof Error ? e.message : undefined)
     } finally {
       setAdding(false)
+    }
+  }
+
+  /** Teacher-side recovery: clear a student's password + device binding. */
+  const resetStudentPassword = async (student: { id: string; name: string }) => {
+    const confirmed = window.confirm(
+      `Reset password for ${student.name}?\n\nThey will sign in next with their phone number + a NEW password. Their current password and device binding stop working.`
+    )
+    if (!confirmed) return
+    try {
+      const res = await api<{ message: string }>(
+        `/api/classes/${classId}/students/${student.id}/reset`,
+        { method: 'POST' }
+      )
+      ok('Password reset', res.message)
+    } catch (e) {
+      err('Could not reset password', e instanceof Error ? e.message : undefined)
     }
   }
 
@@ -376,6 +394,15 @@ export default function TeacherClassDetail({
                         <span className="block truncate text-sm font-medium text-heading">{s.name}</span>
                         <span className="block font-mono text-xs text-label">{s.phone}</span>
                       </span>
+                      <button
+                        type="button"
+                        onClick={() => resetStudentPassword({ id: s.id, name: s.name })}
+                        aria-label={`Reset password for ${s.name}`}
+                        title="Reset password (student signs in next with a new password)"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-label hover:bg-rust/10 hover:text-rust"
+                      >
+                        <KeyRound className="h-4 w-4" aria-hidden />
+                      </button>
                     </li>
                   ))}
                 </ul>

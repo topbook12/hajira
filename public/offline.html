@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Hajira — Offline</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 14px; padding: 24px; text-align: center;
+      background: linear-gradient(140deg, #241C15 0%, #3D332B 60%, #241C15 100%);
+      color: #EFEDE9; font-family: system-ui, -apple-system, sans-serif;
+    }
+    .tile {
+      width: 72px; height: 72px; border-radius: 20px; display: flex; align-items: center; justify-content: center;
+      background: #FFE01B; box-shadow: 0 12px 30px rgba(0,0,0,.35);
+    }
+    .tile svg { width: 42px; height: 42px; stroke: #241C15; }
+    h1 { font-size: 22px; font-weight: 700; }
+    p { max-width: 320px; font-size: 14px; line-height: 1.55; color: #D4CFC8; }
+    button {
+      margin-top: 6px; border: 0; border-radius: 999px; padding: 12px 28px;
+      background: #FFE01B; color: #241C15; font-size: 15px; font-weight: 700; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="tile" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z" fill="#241C15" stroke="#241C15"/>
+      <path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/>
+    </svg>
+  </div>
+  <h1>You're offline</h1>
+  <p>Attendance check-ins need the internet — they verify your location and the live session in real time. Reconnect and try again.</p>
+  <button onclick="location.reload()">Retry</button>
+</body>
+</html>
