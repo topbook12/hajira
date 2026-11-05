@@ -3,7 +3,7 @@ import { Fraunces, Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import PwaRegister from "@/components/pwa/pwa-register";
-import InstallPrompt from "@/components/pwa/install-prompt";
+import InstallGate from "@/components/pwa/install-gate";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -47,10 +47,17 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${fraunces.variable} antialiased bg-background text-foreground`}
       >
+        {/* Capture Chrome's install event before React mounts — never miss it. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__hajiraInstallEvt=e;window.dispatchEvent(new Event('hajira:install-ready'));})}catch(_){}",
+          }}
+        />
         {children}
         <Toaster />
         <PwaRegister />
-        <InstallPrompt />
+        <InstallGate />
       </body>
     </html>
   );

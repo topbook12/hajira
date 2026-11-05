@@ -153,7 +153,7 @@ export default function TeacherClassesView({
 
       {/* New class dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="dialog-sheet sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Create a new class</DialogTitle>
             <DialogDescription>

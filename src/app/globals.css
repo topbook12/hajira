@@ -551,6 +551,57 @@
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 .pt-safe { padding-top: env(safe-area-inset-top); }
 
+/* ===== Mobile: dialogs become native bottom sheets =====
+   Below 640px every .dialog-sheet slides up from the bottom edge, full-width,
+   with a grabber and safe-area padding — like a real mobile app. Unlayered CSS
+   intentionally overrides Tailwind's centered-dialog utilities on mobile. */
+@keyframes hajira-sheet-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes hajira-sheet-down {
+  from { transform: translateY(0); opacity: 1; }
+  to   { transform: translateY(100%); opacity: 1; }
+}
+@media (max-width: 639px) {
+  .dialog-sheet {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 100vw;
+    /* LightningCSS erases literal identity `translate: 0 0` as a "no-op", so
+       route the value through var() — the minifier must keep it. This resets
+       Tailwind v4's centered-dialog `translate: -50% -50%` on mobile. */
+    transform: none !important;
+    translate: var(--hajira-sheet-x, 0) var(--hajira-sheet-y, 0) !important;
+    border-radius: 1.25rem 1.25rem 0 0;
+    border-bottom: none;
+    border-left: none;
+    border-right: none;
+    padding: 1.5rem 1.25rem max(1.25rem, env(safe-area-inset-bottom));
+    box-shadow: 0 -12px 40px rgba(36, 28, 21, 0.22);
+  }
+  .dialog-sheet[data-state='open'] {
+    animation: hajira-sheet-up 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .dialog-sheet[data-state='closed'] {
+    animation: hajira-sheet-down 0.2s ease-in both;
+  }
+  .dialog-sheet::before {
+    content: "";
+    position: absolute;
+    top: 0.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2.25rem;
+    height: 0.25rem;
+    border-radius: 9999px;
+    background: var(--border);
+  }
+}
+
 /* Display heading utility — apply Fraunces serif */
 .font-display {
   font-family: var(--font-fraunces), Georgia, serif;

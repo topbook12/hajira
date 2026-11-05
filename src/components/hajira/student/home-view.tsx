@@ -370,7 +370,7 @@ export default function StudentHomeView({
 
       {/* Join class dialog */}
       <Dialog open={joinOpen} onOpenChange={setJoinOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="dialog-sheet sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Join a class</DialogTitle>
             <DialogDescription>Enter the code your teacher shared.</DialogDescription>

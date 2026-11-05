@@ -399,7 +399,7 @@ export default function TeacherLiveSession({
                         disabled={ended}
                         aria-label={`${row.studentName} — mark present`}
                         title="Mark present"
-                        className="text-green hover:bg-green/10 hover:text-green"
+                        className="h-10 w-10 text-green hover:bg-green/10 hover:text-green sm:h-9 sm:w-9"
                       >
                         <Check className="h-4 w-4" aria-hidden />
                       </Button>
@@ -410,7 +410,7 @@ export default function TeacherLiveSession({
                         disabled={ended}
                         aria-label={`${row.studentName} — mark absent`}
                         title="Mark absent"
-                        className="text-rust hover:bg-rust/10 hover:text-rust"
+                        className="h-10 w-10 text-rust hover:bg-rust/10 hover:text-rust sm:h-9 sm:w-9"
                       >
                         <X className="h-4 w-4" aria-hidden />
                       </Button>

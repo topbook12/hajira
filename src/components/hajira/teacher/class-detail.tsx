@@ -472,7 +472,7 @@ export default function TeacherClassDetail({
 
       {/* Add students dialog */}
       <Dialog open={studentsOpen} onOpenChange={setStudentsOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="dialog-sheet sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Add students</DialogTitle>
             <DialogDescription>

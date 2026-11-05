@@ -3,7 +3,7 @@
 import * as React from 'react'
 
 import { motion } from 'framer-motion'
-import { Fingerprint, GraduationCap, Loader2, MapPin, Timer } from 'lucide-react'
+import { Fingerprint, GraduationCap, Loader2, MapPin, Smartphone, Timer } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -12,6 +12,8 @@ import { Label } from '@/components/ui/label'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api, setUser as persistUser, type HajiraUser, type Role } from '@/lib/hajira-client'
 import { useHajiraToasts } from '@/components/hajira/shared'
+import { openInstallGate } from '@/components/pwa/install-gate'
+import { useInstallAvailable } from '@/components/pwa/install-button'
 
 const FEATURES = [
   { icon: Fingerprint, label: 'Fingerprint verification' },
@@ -21,6 +23,7 @@ const FEATURES = [
 
 export default function LoginScreen({ onLogin }: { onLogin: (u: HajiraUser) => void }) {
   const { ok, err } = useHajiraToasts()
+  const installAvailable = useInstallAvailable()
   const [role, setRole] = React.useState<Role>('TEACHER')
   const [name, setName] = React.useState('')
   const [phone, setPhone] = React.useState('')
@@ -189,6 +192,23 @@ export default function LoginScreen({ onLogin }: { onLogin: (u: HajiraUser) => v
           </p>
         </CardContent>
       </Card>
+
+      {/* Install entry point — always one tap away */}
+      {installAvailable ? (
+        <button
+          type="button"
+          onClick={openInstallGate}
+          className="group inline-flex items-center gap-2.5 rounded-full border border-border bg-card/90 py-2 pl-3 pr-4 shadow-sm backdrop-blur transition-all hover:-translate-y-0.5 hover:border-gold-deep hover:shadow-md"
+        >
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gold/30 text-ink">
+            <Smartphone className="h-4 w-4" aria-hidden />
+          </span>
+          <span className="text-sm font-medium text-body">
+            Install Hajira on your phone
+            <span className="ml-1.5 text-xs text-label group-hover:text-ink">— one tap, full screen</span>
+          </span>
+        </button>
+      ) : null}
     </motion.div>
   )
 }

@@ -7,6 +7,7 @@ import { GraduationCap, LogOut, Loader2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { getUser, setUser as persistUser, logout as serverLogout, type HajiraUser } from '@/lib/hajira-client'
+import InstallButton from '@/components/pwa/install-button'
 import LoginScreen from '@/components/hajira/login-screen'
 import TeacherClassesView from '@/components/hajira/teacher/classes-view'
 import TeacherClassDetail from '@/components/hajira/teacher/class-detail'
@@ -164,14 +165,14 @@ export default function HajiraPage() {
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       {user ? (
         <header className="glass-premium sticky top-0 z-40">
-          <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3">
+          <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
             <div className="flex items-center gap-2.5">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-ink text-gold shadow-sm">
                 <GraduationCap className="h-5 w-5" aria-hidden />
               </span>
               <span className="font-display text-xl tracking-tight text-heading">Hajira</span>
             </div>
-            <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
               <span className="hidden max-w-[180px] truncate text-sm font-medium text-body sm:block">
                 {user.name}
               </span>
@@ -182,6 +183,7 @@ export default function HajiraPage() {
                   Student
                 </Badge>
               )}
+              <InstallButton />
               <Button
                 variant="ghost"
                 size="icon"
