@@ -69,9 +69,18 @@ export async function POST(req: NextRequest) {
       return badRequest('Enter your full name')
     }
     if (role === 'TEACHER') {
-      const expected = process.env.TEACHER_SIGNUP_KEY || 'HAJIRA-TEACHER'
-      if (teacherKey !== expected) {
-        return forbidden('Invalid teacher key — ask your department for it')
+      // Bootstrap rule: the FIRST teacher of this institute signs up without
+      // any key — otherwise nobody could ever create the first account.
+      // Only AFTER a teacher exists do further teacher signups need the
+      // shared key (TEACHER_SIGNUP_KEY env var, default 'HAJIRA-TEACHER').
+      const teacherCount = await db.user.count({ where: { role: 'TEACHER' } })
+      if (teacherCount > 0) {
+        const expected = process.env.TEACHER_SIGNUP_KEY || 'HAJIRA-TEACHER'
+        if (teacherKey !== expected) {
+          return forbidden(
+            'Invalid teacher key — a teacher account already exists for this institute. Ask your department for the institute teacher key.'
+          )
+        }
       }
     }
 

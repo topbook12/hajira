@@ -152,16 +152,19 @@ export default function LoginScreen({ onLogin }: { onLogin: (u: HajiraUser) => v
             </div>
             {role === 'TEACHER' ? (
               <div className="flex flex-col gap-2">
-                <Label htmlFor="hajira-teacher-key">Teacher key (new accounts)</Label>
+                <Label htmlFor="hajira-teacher-key">
+                  Teacher key <span className="font-normal text-label">(optional)</span>
+                </Label>
                 <Input
                   id="hajira-teacher-key"
                   value={teacherKey}
                   onChange={(e) => setTeacherKey(e.target.value)}
-                  placeholder="Provided by your department"
+                  placeholder="Leave empty if you are the first teacher"
                   autoComplete="off"
                 />
                 <p className="text-xs text-label">
-                  Only needed the first time — it keeps students from creating teacher accounts.
+                  The <strong>first teacher</strong> of your institute signs up without a key. After
+                  that, new teachers need the institute key from your department.
                 </p>
               </div>
             ) : null}
