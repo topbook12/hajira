@@ -41,6 +41,18 @@ async function GET_impl(req: NextRequest) {
     },
     orderBy: { startedAt: 'desc' },
   })
+
+  // Which of these has this student already checked into? One indexed query
+  // replaces the N per-session lookups the Home screen used to make —
+  // 4+ requests per poll become 1 (less mobile data, less DB load, lower cost).
+  const sessionIds = sessions.map((s) => s.id)
+  const mine = sessionIds.length
+    ? await db.checkIn.findMany({
+        where: { studentId: user.id, sessionId: { in: sessionIds } },
+        select: { sessionId: true },
+      })
+    : []
+
   return NextResponse.json({
     sessions: sessions.map((s) => ({
       id: s.id,
@@ -54,6 +66,7 @@ async function GET_impl(req: NextRequest) {
       durationSec: s.durationSec,
       startedAt: s.startedAt,
     })),
+    checkedSessionIds: mine.map((m) => m.sessionId),
   })
 }
 

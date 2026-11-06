@@ -15,7 +15,7 @@ const prisma = url && token
   ? new PrismaClient({ adapter: new PrismaLibSQL({ url, authToken: token }) })
   : new PrismaClient()
 
-const TEST_PHONES = ['01712345601', '01812345601']
+const TEST_PHONES = ['01712345602', '01912345601', '01912345602']
 
 const testUsers = await prisma.user.findMany({
   where: { phone: { in: TEST_PHONES } },

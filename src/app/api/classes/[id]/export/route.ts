@@ -82,17 +82,18 @@ async function GET_impl(
       byStudent.set(c.studentId, row)
     }
   }
-  const sheetRows = roster.map((m) => {
+  const sheetRows = roster.map((m, i) => {
     const marks = byStudent.get(m.studentId)
     const present = presentByStudent.get(m.studentId) ?? 0
     const flagged = flaggedByStudent.get(m.studentId) ?? 0
     const pct = total ? Math.round((present / total) * 100) : 0
     const row: Record<string, string | number> = {
+      SL: i + 1,
       Name: m.student.name,
       Phone: m.student.phone,
     }
-    sessions.forEach((s, i) => {
-      row[colLabels[i]] = marks?.get(s.id) ?? 'A'
+    sessions.forEach((s, idx) => {
+      row[colLabels[idx]] = marks?.get(s.id) ?? 'A'
     })
     row['P'] = present
     row['F'] = flagged
@@ -102,11 +103,12 @@ async function GET_impl(
   })
 
   // Sheet 1 — Summary
-  const summaryRows = roster.map((m) => {
+  const summaryRows = roster.map((m, i) => {
     const present = presentByStudent.get(m.studentId) ?? 0
     const flagged = flaggedByStudent.get(m.studentId) ?? 0
     const pct = total ? Math.round((present / total) * 100) : 0
     return {
+      SL: i + 1,
       Name: m.student.name,
       Phone: m.student.phone,
       Sessions: total,

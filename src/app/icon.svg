@@ -1,6 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#241C15"/>
-  <path d="M18 16v32M18 32h20a8 8 0 0 0 8-8V16" stroke="#FFE01B" stroke-width="6" stroke-linecap="round" fill="none"/>
-  <circle cx="46" cy="46" r="8" fill="#2D4F35"/>
-  <path d="M42.5 46l2.5 2.5 4.5-4.5" stroke="#EFEDE9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#241C15"/>
+      <stop offset="0.55" stop-color="#3D332B"/>
+      <stop offset="1" stop-color="#241C15"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+  <!-- rotating-QR radar: faint ring + one bright gold arc -->
+  <circle cx="32" cy="31" r="23" fill="none" stroke="#FFE01B" stroke-opacity="0.16" stroke-width="2.5"/>
+  <circle cx="32" cy="31" r="23" fill="none" stroke="#FFE01B" stroke-width="2.5"
+          stroke-linecap="round" stroke-dasharray="17 127.4" transform="rotate(-56 32 31)"/>
+  <!-- graduation cap -->
+  <g transform="translate(9.8 13.6) scale(1.86)" fill="none" stroke="#E6C800" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z" fill="#FFE01B"/>
+    <path d="M22 10v6"/>
+    <path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/>
+  </g>
+  <!-- verified badge -->
+  <circle cx="47" cy="47" r="10.5" fill="#FFE01B"/>
+  <path d="M42.2 47.2l3.4 3.4 6-6.8" fill="none" stroke="#241C15" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

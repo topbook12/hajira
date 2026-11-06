@@ -12,13 +12,26 @@ import {
   Play,
   Radio,
   ScanLine,
+  Search,
+  UserMinus,
   UserPlus,
   Users,
 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import {
   Dialog,
   DialogContent,
@@ -75,6 +88,11 @@ export default function TeacherClassDetail({
   const [studentsOpen, setStudentsOpen] = React.useState(false)
   const [studentsText, setStudentsText] = React.useState('')
   const [adding, setAdding] = React.useState(false)
+
+  // roster management
+  const [rosterSearch, setRosterSearch] = React.useState('')
+  const [removing, setRemoving] = React.useState<{ id: string; name: string } | null>(null)
+  const [removeBusy, setRemoveBusy] = React.useState(false)
 
   const load = React.useCallback(async () => {
     try {
@@ -190,6 +208,30 @@ export default function TeacherClassDetail({
       ok('Password reset', res.message)
     } catch (e) {
       err('Could not reset password', e instanceof Error ? e.message : undefined)
+    }
+  }
+
+  /** Remove the student from THIS class (their other classes stay intact). */
+  const removeStudent = async () => {
+    if (!removing) return
+    setRemoveBusy(true)
+    try {
+      const res = await api<{ removedCheckIns: number; message: string }>(
+        `/api/classes/${classId}/students/${removing.id}`,
+        { method: 'DELETE' }
+      )
+      ok(
+        `${removing.name} removed`,
+        res.removedCheckIns > 0
+          ? `Their ${res.removedCheckIns} check-in${res.removedCheckIns > 1 ? 's' : ''} in this class were also cleared`
+          : 'They are no longer on this class roster'
+      )
+      setRemoving(null)
+      await load()
+    } catch (e) {
+      err('Could not remove the student', e instanceof Error ? e.message : undefined)
+    } finally {
+      setRemoveBusy(false)
     }
   }
 
@@ -390,61 +432,96 @@ export default function TeacherClassDetail({
                 hint="Paste a CSV list to add them, or share the class code so students can join themselves."
               />
             ) : (
-              <ScrollList>
-                <ul className="flex flex-col gap-2">
-                  {data.roster.map((s) => {
-                    const pct = s.pct
-                    const atRisk = typeof pct === 'number' && pct < (data.cls.threshold ?? 70)
-                    return (
-                      <li
-                        key={s.id}
-                        className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-cream-soft/60 px-3 py-2"
-                      >
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold/25 text-sm font-bold text-ink">
-                          {s.name.trim().charAt(0) || '?'}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-medium text-heading">{s.name}</span>
-                          <span className="block font-mono text-xs text-label">{s.phone}</span>
-                        </span>
-                        <span className="flex w-20 shrink-0 flex-col items-end gap-1">
-                          {typeof pct === 'number' ? (
-                            <>
-                              <span
-                                className={
-                                  'font-mono text-xs font-bold ' +
-                                  (atRisk ? 'text-amber-600' : 'text-green')
-                                }
+              <>
+                {data.roster.length > 8 ? (
+                  <div className="relative">
+                    <Search
+                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-label"
+                      aria-hidden
+                    />
+                    <Input
+                      value={rosterSearch}
+                      onChange={(e) => setRosterSearch(e.target.value)}
+                      placeholder="Find a student…"
+                      aria-label="Search students"
+                      className="h-10 bg-card pl-9"
+                    />
+                  </div>
+                ) : null}
+                <ScrollList>
+                  <ul className="flex flex-col gap-2">
+                    {data.roster
+                      .filter(
+                        (s) =>
+                          !rosterSearch.trim() ||
+                          s.name.toLowerCase().includes(rosterSearch.trim().toLowerCase()) ||
+                          s.phone.includes(rosterSearch.trim().replace(/\D/g, ''))
+                      )
+                      .map((s) => {
+                        const pct = s.pct
+                        const atRisk = typeof pct === 'number' && pct < (data.cls.threshold ?? 70)
+                        return (
+                          <li
+                            key={s.id}
+                            className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-cream-soft/60 px-3 py-2"
+                          >
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold/25 text-sm font-bold text-ink">
+                              {s.name.trim().charAt(0) || '?'}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-medium text-heading">{s.name}</span>
+                              <span className="block font-mono text-xs text-label">{s.phone}</span>
+                            </span>
+                            <span className="flex w-20 shrink-0 flex-col items-end gap-1">
+                              {typeof pct === 'number' ? (
+                                <>
+                                  <span
+                                    className={
+                                      'font-mono text-xs font-bold ' +
+                                      (atRisk ? 'text-amber-600' : 'text-green')
+                                    }
+                                  >
+                                    {pct}%
+                                  </span>
+                                  <span className="h-1.5 w-full overflow-hidden rounded-full bg-border">
+                                    <span
+                                      className={
+                                        'block h-full rounded-full ' + (atRisk ? 'bg-gold-deep' : 'bg-green')
+                                      }
+                                      style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
+                                    />
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-xs text-label">No sessions</span>
+                              )}
+                            </span>
+                            <span className="flex shrink-0 items-center">
+                              <button
+                                type="button"
+                                onClick={() => resetStudentPassword({ id: s.id, name: s.name })}
+                                aria-label={`Reset password for ${s.name}`}
+                                title="Reset password (student signs in next with a new password)"
+                                className="flex h-9 w-9 items-center justify-center rounded-full text-label hover:bg-rust/10 hover:text-rust"
                               >
-                                {pct}%
-                              </span>
-                              <span className="h-1.5 w-full overflow-hidden rounded-full bg-border">
-                                <span
-                                  className={
-                                    'block h-full rounded-full ' + (atRisk ? 'bg-gold-deep' : 'bg-green')
-                                  }
-                                  style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
-                                />
-                              </span>
-                            </>
-                          ) : (
-                            <span className="text-xs text-label">No sessions</span>
-                          )}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => resetStudentPassword({ id: s.id, name: s.name })}
-                          aria-label={`Reset password for ${s.name}`}
-                          title="Reset password (student signs in next with a new password)"
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-label hover:bg-rust/10 hover:text-rust"
-                        >
-                          <KeyRound className="h-4 w-4" aria-hidden />
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </ScrollList>
+                                <KeyRound className="h-4 w-4" aria-hidden />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setRemoving({ id: s.id, name: s.name })}
+                                aria-label={`Remove ${s.name} from this class`}
+                                title="Remove from this class"
+                                className="flex h-9 w-9 items-center justify-center rounded-full text-label hover:bg-rust/10 hover:text-rust"
+                              >
+                                <UserMinus className="h-4 w-4" aria-hidden />
+                              </button>
+                            </span>
+                          </li>
+                        )
+                      })}
+                  </ul>
+                </ScrollList>
+              </>
             )}
 
             <p className="rounded-lg bg-gold/15 px-3 py-2 text-xs text-ink">
@@ -546,6 +623,33 @@ export default function TeacherClassDetail({
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Remove-student confirmation */}
+      <AlertDialog open={!!removing} onOpenChange={(o) => !o && setRemoving(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {removing?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              They leave this class&apos; roster and their check-ins in this class are cleared so
+              the present sheet stays accurate. Their account and other classes are not touched.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removeBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                removeStudent()
+              }}
+              disabled={removeBusy}
+              className="bg-rust text-cream hover:bg-rust/90"
+            >
+              {removeBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+              Remove student
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   )
 }

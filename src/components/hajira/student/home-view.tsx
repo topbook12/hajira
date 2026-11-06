@@ -87,12 +87,51 @@ export default function StudentHomeView({
   const scanHandledRef = React.useRef(scanHandled)
 
   const load = React.useCallback(async () => {
+    // FAST POLL — one cheap request. Sessions + "already checked in" arrive
+    // together from /api/sessions/active (1 request replaced 3 + N).
+    try {
+      const r = await api<{
+        sessions: ActiveSessionInfo[]
+        checkedSessionIds?: string[]
+      }>('/api/sessions/active')
+      const list = r.sessions ?? []
+      setSessions(list)
+      setCheckedMap(Object.fromEntries((r.checkedSessionIds ?? []).map((id) => [id, true])))
+
+      /* Scan FAB was tapped — open the first unchecked live session straight
+         into the camera scanner. If nothing is live, say so honestly. */
+      if (scanSignalRef.current > scanHandledRef.current) {
+        scanHandledRef.current = scanSignalRef.current
+        onScanHandled?.(scanSignalRef.current)
+        const checked = new Set(r.checkedSessionIds ?? [])
+        const target = list.find((s) => !checked.has(s.id))
+        if (target) {
+          setCheckinSession(target)
+          setOpenScannerNow(true)
+        } else if (list.length > 0) {
+          err('Already checked in', 'You are checked in to every live session.')
+        } else {
+          err('No live session right now', 'When your teacher starts one, tap Scan again.')
+        }
+      }
+    } catch (e) {
+      // never blank the dashboard — keep the previous list on screen
+      setSessions((prev) => prev ?? [])
+      if (!loadedOnce.current) {
+        err('Data did not load', e instanceof Error ? e.message : undefined)
+      }
+    }
+    loadedOnce.current = true
+  }, [err, onScanHandled])
+
+  /** SLOW LOAD — the heavier identity/summary data, refreshed rarely:
+      on mount, on manual reload, and after a check-in changes the numbers. */
+  const loadSlow = React.useCallback(async () => {
     setMeFailed(false)
     // Each feed succeeds or fails INDEPENDENTLY — one flaky response must
     // never blank the whole dashboard (the mobile "data won't load" trap).
-    const [meR, activeR, todayR] = await Promise.allSettled([
+    const [meR, todayR] = await Promise.allSettled([
       api<{ totals?: StudentTotals }>('/api/me'),
-      api<{ sessions: ActiveSessionInfo[] }>('/api/sessions/active'),
       api<{ slots: TodaySlot[] }>('/api/timetable/today'),
     ])
 
@@ -101,16 +140,6 @@ export default function StudentHomeView({
     } else {
       setMeFailed(true)
       setMeError(meR.reason instanceof Error ? meR.reason.message : undefined)
-      // toast only on the FIRST failure — never spam every 10s poll
-      if (!loadedOnce.current) {
-        err('Data did not load', meR.reason instanceof Error ? meR.reason.message : undefined)
-      }
-    }
-
-    if (activeR.status === 'fulfilled') {
-      setSessions(activeR.value.sessions ?? [])
-    } else {
-      setSessions((prev) => prev ?? [])
     }
 
     if (todayR.status === 'fulfilled') {
@@ -118,38 +147,7 @@ export default function StudentHomeView({
     } else {
       setToday((prev) => prev ?? [])
     }
-    loadedOnce.current = true
-
-    const activeList = activeR.status === 'fulfilled' ? activeR.value.sessions ?? [] : []
-    const entries = await Promise.all(
-      activeList.map(async (s) => {
-        try {
-          const d = await api<{ myCheckIn: unknown | null }>(`/api/sessions/${s.id}`)
-          return [s.id, !!d.myCheckIn] as const
-        } catch {
-          return [s.id, false] as const
-        }
-      })
-    )
-    const checked = Object.fromEntries(entries)
-    setCheckedMap(checked)
-
-    /* Scan FAB was tapped — open the first unchecked live session straight
-       into the camera scanner. If nothing is live, say so honestly. */
-    if (scanSignalRef.current > scanHandledRef.current) {
-      scanHandledRef.current = scanSignalRef.current
-      onScanHandled?.(scanSignalRef.current)
-      const target = activeList.find((s) => !checked[s.id])
-      if (target) {
-        setCheckinSession(target)
-        setOpenScannerNow(true)
-      } else if (activeList.length > 0) {
-        err('Already checked in', 'You are checked in to every live session.')
-      } else {
-        err('No live session right now', 'When your teacher starts one, tap Scan again.')
-      }
-    }
-  }, [err, onScanHandled])
+  }, [])
 
   React.useEffect(() => {
     scanSignalRef.current = scanSignal
@@ -161,13 +159,19 @@ export default function StudentHomeView({
 
   React.useEffect(() => {
     load()
-  }, [load, reloadKey, scanSignal])
+    loadSlow()
+  }, [load, loadSlow, reloadKey, scanSignal])
 
-  /* poll active sessions every 10s */
+  /* ADAPTIVE POLLING — the cost lever.
+     A live attendance window is precious: poll every 10s so the card and
+     the "already checked in" state stay fresh. With nothing live, 45s is
+     plenty — that cuts idle requests (Vercel invocations, Turso reads,
+     mobile battery and data) by ~78% without any UX loss. */
+  const liveCountLocal = (sessions ?? []).length
   React.useEffect(() => {
-    const iv = setInterval(load, 10_000)
+    const iv = setInterval(load, liveCountLocal > 0 ? 10_000 : 45_000)
     return () => clearInterval(iv)
-  }, [load])
+  }, [load, liveCountLocal])
 
   const liveCount = (sessions ?? []).filter((s) => !checkedMap[s.id]).length
   const onTrack = (totals?.overallPct ?? 0) >= 70
@@ -382,7 +386,10 @@ export default function StudentHomeView({
             setOpenScannerNow(false)
           }
         }}
-        onChecked={load}
+        onChecked={() => {
+          load()
+          loadSlow() // the hero % and counts changed after this check-in
+        }}
       />
     </section>
   )

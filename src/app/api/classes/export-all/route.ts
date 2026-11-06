@@ -91,17 +91,18 @@ async function GET_impl(req: NextRequest) {
       return n > 1 ? `${base} #${n}` : base
     })
 
-    const rows: Record<string, string | number>[] = roster.map((m) => {
+    const rows: Record<string, string | number>[] = roster.map((m, i) => {
       const marks = byStudent.get(m.studentId)
       const present = presentByStudent.get(m.studentId) ?? 0
       const flagged = flaggedByStudent.get(m.studentId) ?? 0
       const pct = total ? Math.round((present / total) * 100) : 0
       const row: Record<string, string | number> = {
+        SL: i + 1,
         Name: m.student.name,
         Phone: m.student.phone,
       }
-      sessions.forEach((s, i) => {
-        row[colLabels[i]] = marks?.get(s.id) ?? 'A'
+      sessions.forEach((s, idx) => {
+        row[colLabels[idx]] = marks?.get(s.id) ?? 'A'
       })
       row['P'] = present
       row['F'] = flagged
