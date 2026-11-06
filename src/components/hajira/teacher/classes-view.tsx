@@ -37,6 +37,7 @@ import {
   type TeacherTotals,
 } from '@/lib/hajira-client'
 import { CodeChip, EmptyState, PulsingDot, useHajiraToasts } from '@/components/hajira/shared'
+import FingerprintCard from '@/components/hajira/fingerprint-card'
 
 /** One dark-hero stat cell (icon + value + label, cream on peppercorn) */
 function HeroStat({
@@ -377,6 +378,9 @@ export default function TeacherClassesView({
           ))}
         </div>
       )}
+
+      {/* Fingerprint sign-in — teachers register a passkey once, then skip the password */}
+      <FingerprintCard role="TEACHER" />
 
       {/* New class dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

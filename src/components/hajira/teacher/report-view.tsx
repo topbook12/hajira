@@ -27,11 +27,13 @@ import {
 import { api, downloadBlob, type ReportData } from '@/lib/hajira-client'
 import { EmptyState, useHajiraToasts } from '@/components/hajira/shared'
 
-/** Short date for grid columns: "5 Nov" */
+/** Short date for grid columns: "5 Nov" — always Bangladesh time */
 function dayLabel(iso: string): string {
-  const d = new Date(iso)
-  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  return `${d.getDate()} ${MONTHS[d.getMonth()]}`
+  return new Date(iso).toLocaleDateString('en-GB', {
+    timeZone: 'Asia/Dhaka',
+    day: 'numeric',
+    month: 'short',
+  })
 }
 
 /** Cell mark for the present sheet */

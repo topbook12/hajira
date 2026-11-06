@@ -1,6 +1,13 @@
 'use client'
 
 import { io } from 'socket.io-client'
+import {
+  browserSupportsWebAuthn,
+  startAuthentication,
+  startRegistration,
+  type PublicKeyCredentialCreationOptionsJSON,
+  type PublicKeyCredentialRequestOptionsJSON,
+} from '@simplewebauthn/browser'
 
 /* ------------------------------ core types ------------------------------ */
 
@@ -435,38 +442,122 @@ export function getPosition(): Promise<{ lat: number; lng: number; acc?: number 
 }
 
 /* --------------------------- WebAuthn fingerprint ------------------------ */
+/**
+ * Real, server-verified biometrics (WebAuthn passkeys):
+ *  - register this device's fingerprint/face/PIN once (Profile)
+ *  - verify with the sensor at every check-in (server checks the signature)
+ *  - sign in with the sensor instead of phone + password
+ *
+ * The server stores only a PUBLIC key; the fingerprint itself never leaves
+ * the phone. All calls go through `api()` so errors arrive as honest,
+ * plain-language messages.
+ */
 
-export async function tryFingerprint(displayName: string): Promise<boolean> {
+/** True when this browser can do WebAuthn at all. */
+export function bioSupported(): boolean {
   try {
-    if (typeof window === 'undefined') return false
-    if (!('PublicKeyCredential' in window)) return false
-    const challenge = crypto.getRandomValues(new Uint8Array(32))
-    const userId = crypto.getRandomValues(new Uint8Array(16))
-    const createPromise = (navigator as any).credentials.create({
-      publicKey: {
-        challenge,
-        rp: { name: 'Hajira Attendance' },
-        user: { id: userId, name: displayName, displayName },
-        pubKeyCredParams: [
-          { type: 'public-key', alg: -7 },
-          { type: 'public-key', alg: -257 },
-        ],
-        authenticatorSelection: {
-          authenticatorAttachment: 'platform',
-          userVerification: 'required',
-          residentKey: 'preferred',
-        },
-        timeout: 8000,
-        attestation: 'none',
-      },
-    })
-    // hang-proof: never let a stuck authenticator block check-in
-    const guard = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 9000))
-    const cred = await Promise.race([createPromise, guard])
-    return !!cred
+    return typeof window !== 'undefined' && browserSupportsWebAuthn()
   } catch {
     return false
   }
+}
+
+export type BioStatus = {
+  enrolled: boolean
+  biometricRequired: boolean
+  credentials: {
+    id: string
+    credentialId: string
+    deviceType: string | null
+    backedUp: boolean
+    createdAt: string
+  }[]
+}
+
+export function getBioStatus(): Promise<BioStatus> {
+  return api<BioStatus>('/api/webauthn/status')
+}
+
+export function setBioPreference(
+  enabled: boolean
+): Promise<{ ok: true; biometricRequired: boolean }> {
+  return api('/api/webauthn/preference', { method: 'POST', body: { enabled } })
+}
+
+export function removeCredential(
+  credentialId: string
+): Promise<{ ok: boolean; enrolled: boolean; biometricRequired: boolean }> {
+  return api('/api/webauthn/status', { method: 'DELETE', body: { credentialId } })
+}
+
+/** Enroll this device's sensor as a Hajira passkey (must be signed in). */
+export async function fingerprintRegister(): Promise<void> {
+  const { options } = await api<{ options: unknown }>('/api/webauthn/register/options', {
+    method: 'POST',
+  })
+  let attResp: Awaited<ReturnType<typeof startRegistration>>
+  try {
+    attResp = await startRegistration({
+      optionsJSON: options as PublicKeyCredentialCreationOptionsJSON,
+    })
+  } catch (e) {
+    const name = (e as DOMException)?.name
+    if (name === 'NotAllowedError' || name === 'AbortError') {
+      throw new Error('Fingerprint setup was cancelled — try again when you are ready')
+    }
+    if (name === 'InvalidStateError') {
+      throw new Error('This device already has a fingerprint saved for Hajira')
+    }
+    throw new Error('This device could not complete fingerprint setup')
+  }
+  await api('/api/webauthn/register/verify', { method: 'POST', body: { response: attResp } })
+}
+
+/** Ask the sensor to verify the current user — server-checked signature. */
+export async function fingerprintAssert(): Promise<void> {
+  const { options } = await api<{ options: unknown }>('/api/webauthn/assert/options', {
+    method: 'POST',
+  })
+  let authResp: Awaited<ReturnType<typeof startAuthentication>>
+  try {
+    authResp = await startAuthentication({
+      optionsJSON: options as PublicKeyCredentialRequestOptionsJSON,
+    })
+  } catch (e) {
+    const name = (e as DOMException)?.name
+    if (name === 'NotAllowedError' || name === 'AbortError') {
+      throw new Error('Fingerprint verification was cancelled or timed out')
+    }
+    throw new Error('Fingerprint verification failed on this device')
+  }
+  await api('/api/webauthn/assert/verify', { method: 'POST', body: { response: authResp } })
+}
+
+/** Usernameless passkey sign-in — sensor prompt, then a normal session. */
+export async function passkeyLogin(): Promise<HajiraUser> {
+  const { options } = await api<{ options: unknown }>('/api/webauthn/login/options', {
+    method: 'POST',
+  })
+  let authResp: Awaited<ReturnType<typeof startAuthentication>>
+  try {
+    authResp = await startAuthentication({
+      optionsJSON: options as PublicKeyCredentialRequestOptionsJSON,
+    })
+  } catch (e) {
+    const name = (e as DOMException)?.name
+    if (name === 'NotAllowedError' || name === 'AbortError') {
+      throw new Error(
+        'No saved fingerprint for Hajira on this device — sign in with your phone number and password first, then add your fingerprint from Profile'
+      )
+    }
+    throw new Error('Fingerprint sign-in failed — use phone and password instead')
+  }
+  const res = await api<{ user: HajiraUser }>('/api/webauthn/login/verify', {
+    method: 'POST',
+    body: { response: authResp },
+  })
+  setUser(res.user)
+  return res.user
 }
 
 /* -------------------------------- realtime ------------------------------- */

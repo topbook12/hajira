@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import * as XLSX from 'xlsx'
 import { db } from '@/lib/db'
 import { requireUser, serverError, unauthorized } from '@/lib/hajira'
+import { dhakaDate, dhakaStamp, setColWidths } from '@/lib/excel'
 
 /**
  * Export ALL of a teacher's classes in one workbook — the full semester
@@ -27,11 +28,9 @@ async function GET_impl(req: NextRequest) {
     include: { _count: { select: { memberships: true, sessions: true } } },
   })
 
-  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  const dateLabel = (d: Date) => `${d.getDate()} ${MONTHS[d.getMonth()]}`
-
-  const overview: Record<string, string | number>[] = []
+  const dateLabel = (d: Date) => dhakaDate(d)
   const usedNames = new Set<string>(['Overview'])
+  const overview: Record<string, string | number>[] = []
 
   const wb = XLSX.utils.book_new()
 
@@ -119,27 +118,25 @@ async function GET_impl(req: NextRequest) {
       name = `${name.slice(0, 26)}_${n++}`
     }
     usedNames.add(name)
-    XLSX.utils.book_append_sheet(
-      wb,
-      XLSX.utils.json_to_sheet(
-        rows.length ? rows : [{ Name: '—', Note: 'No students yet' }]
-      ),
-      name
-    )
+    const sheetRowsOut = rows.length ? rows : [{ Name: '—', Note: 'No students yet' }]
+    const ws = XLSX.utils.json_to_sheet(sheetRowsOut)
+    setColWidths(ws, sheetRowsOut)
+    XLSX.utils.book_append_sheet(wb, ws, name)
   }
 
   const info = [
     { Field: 'Teacher', Value: user.name },
     { Field: 'Classes', Value: classes.length },
-    { Field: 'Exported', Value: new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC' },
-    { Field: 'Note', Value: 'One Present Sheet per class — P = present, F = flagged, A = absent' },
+    { Field: 'Exported', Value: dhakaStamp() },
+    { Field: 'Note', Value: 'One Present Sheet per class — P = present, F = flagged, A = absent. Dates and times are Dhaka time (UTC+6).' },
   ]
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(info), 'Read Me')
-  XLSX.utils.book_append_sheet(
-    wb,
-    XLSX.utils.json_to_sheet(overview.length ? overview : [{ Note: 'No classes yet' }]),
-    'Overview'
-  )
+  const infoWs = XLSX.utils.json_to_sheet(info)
+  setColWidths(infoWs, info)
+  XLSX.utils.book_append_sheet(wb, infoWs, 'Read Me')
+  const overviewRows = overview.length ? overview : [{ Note: 'No classes yet' }]
+  const overviewWs = XLSX.utils.json_to_sheet(overviewRows)
+  setColWidths(overviewWs, overviewRows)
+  XLSX.utils.book_append_sheet(wb, overviewWs, 'Overview')
 
   const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
   const filename = `Hajira_All_Classes_${new Date().toISOString().slice(0, 10)}.xlsx`

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import * as XLSX from 'xlsx'
 import { db } from '@/lib/db'
 import { forbidden, requireUser, serverError, unauthorized } from '@/lib/hajira'
+import { dhakaDate, dhakaDateISO, dhakaStamp, dhakaTime, dhakaTimeSec, setColWidths } from '@/lib/excel'
 
 /**
  * Excel export — the teacher's portable, offline copy of all attendance data.
@@ -61,8 +62,9 @@ async function GET_impl(
 
   // Sheet 2 — PRESENT SHEET (the classic attendance register):
   // rows = students, columns = every session, cells = P / F / A, with totals.
-  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  const dateLabel = (d: Date) => `${d.getDate()} ${MONTHS[d.getMonth()]}`
+  // Column dates are Dhaka calendar days (UTC server time used to shift
+  // late-evening sessions onto the wrong day).
+  const dateLabel = (d: Date) => dhakaDate(d)
 
   // column labels; add a counter when two sessions share the same date
   const dateCount = new Map<string, number>()
@@ -116,11 +118,11 @@ async function GET_impl(
     }
   })
 
-  // Sheet 2 — Sessions
+  // Sheet 2 — Sessions (Dhaka wall-clock times)
   const sessionRows = sessions.map((s) => ({
-    Date: s.startedAt.toISOString().slice(0, 10),
-    Started: s.startedAt.toISOString().slice(11, 16),
-    Ended: s.endsAt.toISOString().slice(11, 16),
+    Date: dhakaDateISO(s.startedAt),
+    Started: dhakaTime(s.startedAt),
+    Ended: dhakaTime(s.endsAt),
     Status: s.status === 'ACTIVE' ? 'Live/Active' : 'Closed',
     'Present (verified)': s._count.checkIns,
     'GPS radius (m)': s.radiusM,
@@ -137,8 +139,8 @@ async function GET_impl(
       flags = c.flags ?? ''
     }
     return {
-      Date: c.createdAt.toISOString().slice(0, 10),
-      Time: c.createdAt.toISOString().slice(11, 19),
+      Date: dhakaDateISO(c.createdAt),
+      Time: dhakaTimeSec(c.createdAt),
       Student: c.student.name,
       Phone: c.student.phone,
       Status: c.status,
@@ -158,34 +160,31 @@ async function GET_impl(
     { Field: 'Total sessions', Value: total },
     { Field: 'Students', Value: roster.length },
     { Field: 'Eligibility threshold', Value: `${cls.threshold}%` },
-    { Field: 'Exported', Value: new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC' },
+    { Field: 'Exported', Value: dhakaStamp() },
     { Field: 'Exported by', Value: user.name },
   ]
+  setColWidths(XLSX.utils.json_to_sheet(info), info)
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(info), 'Class Info')
-  XLSX.utils.book_append_sheet(
-    wb,
-    XLSX.utils.json_to_sheet(
-      sheetRows.length
-        ? sheetRows
-        : [{ Name: '—', Note: 'No students yet — the session grid appears here' }]
-    ),
-    'Present Sheet'
+  const sheetWs = XLSX.utils.json_to_sheet(
+    sheetRows.length
+      ? sheetRows
+      : [{ Name: '—', Note: 'No students yet — the session grid appears here' }]
   )
-  XLSX.utils.book_append_sheet(
-    wb,
-    XLSX.utils.json_to_sheet(summaryRows.length ? summaryRows : [{ Name: '—', Note: 'No students yet' }]),
-    'Summary'
+  setColWidths(sheetWs, sheetRows.length ? sheetRows : [{ Name: '—', Note: 'No students yet — the session grid appears here' }])
+  XLSX.utils.book_append_sheet(wb, sheetWs, 'Present Sheet')
+  const summaryWs = XLSX.utils.json_to_sheet(
+    summaryRows.length ? summaryRows : [{ Name: '—', Note: 'No students yet' }]
   )
-  XLSX.utils.book_append_sheet(
-    wb,
-    XLSX.utils.json_to_sheet(sessionRows.length ? sessionRows : [{ Note: 'No sessions yet' }]),
-    'Sessions'
+  setColWidths(summaryWs, summaryRows.length ? summaryRows : [{ Name: '—', Note: 'No students yet' }])
+  XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary')
+  const sessionsWs = XLSX.utils.json_to_sheet(
+    sessionRows.length ? sessionRows : [{ Note: 'No sessions yet' }]
   )
-  XLSX.utils.book_append_sheet(
-    wb,
-    XLSX.utils.json_to_sheet(logRows.length ? logRows : [{ Note: 'No check-ins yet' }]),
-    'Check-in Log'
-  )
+  setColWidths(sessionsWs, sessionRows.length ? sessionRows : [{ Note: 'No sessions yet' }])
+  XLSX.utils.book_append_sheet(wb, sessionsWs, 'Sessions')
+  const logWs = XLSX.utils.json_to_sheet(logRows.length ? logRows : [{ Note: 'No check-ins yet' }])
+  setColWidths(logWs, logRows.length ? logRows : [{ Note: 'No check-ins yet' }])
+  XLSX.utils.book_append_sheet(wb, logWs, 'Check-in Log')
 
   const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
   const safeName = cls.name.replace(/[^a-zA-Z0-9-_ ]/g, '').trim().replace(/\s+/g, '-') || 'class'

@@ -87,6 +87,25 @@ async function POST_impl(req: NextRequest) {
     await db.user.update({ where: { id: user.id }, data: { deviceId } })
   }
 
+  // Proof 1b (WHO, strongest): fingerprint — enforced when the student opted
+  // in ("Require fingerprint at check-in"). Skipping is allowed but honest:
+  // the check-in lands as FLAGGED so the teacher reviews it — attendance is
+  // never silently lost.
+  if (user.biometricRequired && !bioVerified) {
+    if (body?.bioFallback === true) {
+      flags.push('Fingerprint verification skipped')
+    } else {
+      return NextResponse.json(
+        {
+          error:
+            'Fingerprint verification is required for your account — verify with the sensor, or check in without it (it will be marked for review)',
+          code: 'BIO_REQUIRED',
+        },
+        { status: 403 }
+      )
+    }
+  }
+
   const status = flags.length ? 'FLAGGED' : 'PRESENT'
 
   let checkIn

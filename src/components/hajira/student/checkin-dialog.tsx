@@ -27,10 +27,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   api,
+  bioSupported,
+  fingerprintAssert,
+  getBioStatus,
   getDeviceId,
   getSocket,
   getPosition,
-  tryFingerprint,
   type CheckInInfo,
   type HajiraUser,
 } from '@/lib/hajira-client'
@@ -50,7 +52,7 @@ type CheckinSession = {
   requireCode?: boolean
 }
 
-type BioState = 'idle' | 'verifying' | 'ok' | 'unsupported' | 'skipped'
+type BioState = 'idle' | 'verifying' | 'ok'
 
 type Result =
   | { kind: 'present'; message: string; checkIn: CheckInInfo }
@@ -80,6 +82,7 @@ export default function CheckinDialog({
   const [loc, setLoc] = React.useState<{ lat: number; lng: number; acc?: number } | null>(null)
   const [code, setCode] = React.useState('')
   const [bio, setBio] = React.useState<BioState>('idle')
+  const [bioRequired, setBioRequired] = React.useState(false)
   const [submitting, setSubmitting] = React.useState(false)
   const [result, setResult] = React.useState<Result | null>(null)
   const [scannerOpen, setScannerOpen] = React.useState(false)
@@ -96,12 +99,14 @@ export default function CheckinDialog({
     }
   }, [])
 
-  /* reset + auto-locate (only when GPS is required) + URL ?code= prefill */
+  /* reset + auto-locate (only when GPS is required) + URL ?code= prefill +
+     fingerprint status (auto-prompt when the student requires the sensor) */
   React.useEffect(() => {
     if (!open) return
     setResult(null)
     setCode('')
     setBio('idle')
+    setBioRequired(false)
     setSubmitting(false)
     try {
       const q = new URLSearchParams(window.location.search).get('code')
@@ -116,6 +121,30 @@ export default function CheckinDialog({
     } else {
       locate()
     }
+
+    // Load the fingerprint setting; when required, raise the sensor once
+    // automatically so the student just touches it instead of hunting for
+    // the button during a 2-minute window.
+    let cancelled = false
+    if (bioSupported()) {
+      getBioStatus()
+        .then((s) => {
+          if (cancelled) return
+          setBioRequired(s.biometricRequired)
+          if (s.biometricRequired) {
+            setBio('verifying')
+            fingerprintAssert()
+              .then(() => !cancelled && setBio('ok'))
+              .catch(() => !cancelled && setBio('idle'))
+          }
+        })
+        .catch(() => {
+          /* status is optional — check-in proceeds without biometrics */
+        })
+    }
+    return () => {
+      cancelled = true
+    }
   }, [open, locate, session?.requireGps])
 
   /* deep-open the camera (Scan FAB) */
@@ -125,8 +154,14 @@ export default function CheckinDialog({
 
   const verifyFingerprint = async () => {
     setBio('verifying')
-    const okBio = await tryFingerprint(user.name)
-    setBio(okBio ? 'ok' : 'unsupported')
+    try {
+      await fingerprintAssert()
+      setBio('ok')
+      ok('Fingerprint verified', 'It is you — now confirm your attendance')
+    } catch (e) {
+      setBio('idle')
+      err('Fingerprint not verified', e instanceof Error ? e.message : undefined)
+    }
   }
 
   const submit = async (codeOverride?: string) => {
@@ -148,6 +183,9 @@ export default function CheckinDialog({
           lng: loc?.lng,
           deviceId: getDeviceId(),
           bioVerified: bio === 'ok',
+          // Opted-in students who skip the sensor still get their attendance
+          // recorded — honestly, as FLAGGED for the teacher to review.
+          bioFallback: bioRequired && bio !== 'ok',
         },
       })
 
@@ -457,47 +495,63 @@ export default function CheckinDialog({
                 </p>
               </div>
 
-              {/* Step 3 — fingerprint */}
-              <div className="rounded-xl border border-border/60 bg-cream-soft/70 p-4">
+              {/* Step 3 — fingerprint (server-verified WebAuthn) */}
+              <div
+                className={
+                  'rounded-xl border p-4 ' +
+                  (bioRequired ? 'border-gold/50 bg-gold/10' : 'border-border/60 bg-cream-soft/70')
+                }
+              >
                 <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-heading">
                   <Fingerprint className="h-4 w-4" aria-hidden />
-                  Fingerprint verification (optional)
+                  Fingerprint verification
+                  {bioRequired ? (
+                    <span className="rounded-full bg-ink px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-gold">
+                      Required
+                    </span>
+                  ) : (
+                    <span className="text-xs font-normal text-label">(optional)</span>
+                  )}
                 </p>
                 {bio === 'ok' ? (
                   <p className="flex items-center gap-2 text-sm font-medium text-green">
                     <CheckCircle2 className="h-4 w-4" aria-hidden />
-                    Fingerprint verified
+                    Fingerprint verified — it&apos;s you
                   </p>
                 ) : bio === 'verifying' ? (
                   <p className="flex items-center gap-2 text-sm text-label">
                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                    Verifying — use your device sensor…
-                  </p>
-                ) : bio === 'unsupported' || bio === 'skipped' ? (
-                  <p className="text-sm text-label">
-                    Fingerprint isn&apos;t available on this device — just tap Confirm attendance
+                    Use your device sensor to confirm it&apos;s you…
                   </p>
                 ) : (
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={verifyFingerprint}
-                      className="border-border font-medium text-ink hover:bg-secondary"
-                    >
-                      <Fingerprint className="h-4 w-4" aria-hidden />
-                      Verify with fingerprint
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setBio('skipped')}
-                      className="text-label"
-                    >
-                      Skip
-                    </Button>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={verifyFingerprint}
+                        className={
+                          bioRequired
+                            ? 'btn-3d border-ink bg-ink font-semibold text-gold hover:bg-ink/90'
+                            : 'border-border font-medium text-ink hover:bg-secondary'
+                        }
+                      >
+                        <Fingerprint className="h-4 w-4" aria-hidden />
+                        Verify with fingerprint
+                      </Button>
+                    </div>
+                    {bioRequired ? (
+                      <p className="text-xs text-amber-700">
+                        You turned this on in your Profile. No sensor on this phone? Confirm
+                        below — your teacher will see it needs review.
+                      </p>
+                    ) : (
+                      <p className="text-xs text-label">
+                        Add your fingerprint once from Profile → Fingerprint to prove it&apos;s
+                        really you at every check-in.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -512,6 +566,8 @@ export default function CheckinDialog({
                     <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
                     Sending…
                   </>
+                ) : bioRequired && bio !== 'ok' ? (
+                  'Confirm without fingerprint (flagged)'
                 ) : (
                   'Confirm attendance'
                 )}

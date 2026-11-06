@@ -9,8 +9,16 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { api, setUser as persistUser, type HajiraUser, type Role } from '@/lib/hajira-client'
+import {
+  api,
+  bioSupported,
+  passkeyLogin,
+  setUser as persistUser,
+  type HajiraUser,
+  type Role,
+} from '@/lib/hajira-client'
 import { useHajiraToasts } from '@/components/hajira/shared'
 import { openInstallGate } from '@/components/pwa/install-gate'
 import { useInstallAvailable } from '@/components/pwa/install-button'
@@ -30,6 +38,21 @@ export default function LoginScreen({ onLogin }: { onLogin: (u: HajiraUser) => v
   const [password, setPassword] = React.useState('')
   const [teacherKey, setTeacherKey] = React.useState('')
   const [loading, setLoading] = React.useState(false)
+  const [bioLoading, setBioLoading] = React.useState(false)
+  const bioOk = React.useMemo(() => bioSupported(), [])
+
+  const signWithFingerprint = async () => {
+    setBioLoading(true)
+    try {
+      const u = await passkeyLogin()
+      ok(`Welcome back, ${u.name}!`, 'Signed in with your fingerprint')
+      onLogin(u)
+    } catch (e) {
+      err('Fingerprint sign-in failed', e instanceof Error ? e.message : undefined)
+    } finally {
+      setBioLoading(false)
+    }
+  }
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -65,7 +88,24 @@ export default function LoginScreen({ onLogin }: { onLogin: (u: HajiraUser) => v
       )
       onLogin(res.user)
     } catch (e) {
-      err('Sign in failed', e instanceof Error ? e.message : undefined)
+      const message = e instanceof Error ? e.message : 'Something went wrong'
+      // The number exists under the OTHER role — flip the tab for the user
+      // instead of making them hunt for it.
+      if (message.includes('TEACHER account')) {
+        setRole('TEACHER')
+        err('You have a teacher account', 'Switched to the Teacher tab — sign in there')
+        return
+      }
+      if (message.includes('STUDENT account')) {
+        setRole('STUDENT')
+        err('You have a student account', 'Switched to the Student tab — sign in there')
+        return
+      }
+      if (message.includes('Wrong password')) {
+        err('This account already exists', `${message} — your account was created the first time you signed in`)
+        return
+      }
+      err('Sign in failed', message)
     } finally {
       setLoading(false)
     }
@@ -184,11 +224,38 @@ export default function LoginScreen({ onLogin }: { onLogin: (u: HajiraUser) => v
                 'Sign in'
               )}
             </Button>
+
+            {bioOk ? (
+              <>
+                <div className="flex items-center gap-2" aria-hidden>
+                  <Separator className="bg-border" />
+                  <span className="text-[11px] font-medium uppercase tracking-wide text-label">or</span>
+                  <Separator className="bg-border" />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={signWithFingerprint}
+                  disabled={bioLoading || loading}
+                  className="h-11 w-full gap-2 border-border font-semibold text-ink hover:bg-secondary"
+                >
+                  {bioLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                  ) : (
+                    <Fingerprint className="h-5 w-5" aria-hidden />
+                  )}
+                  Sign in with fingerprint
+                </Button>
+                <p className="text-center text-[11px] text-label">
+                  Works if you saved your fingerprint on this device before.
+                </p>
+              </>
+            ) : null}
           </form>
 
           <p className="mt-4 text-center text-xs text-label">
-            First time here? Add your name, and your account is created automatically — this
-            password protects it from then on.
+            Already have an account? Phone + password is enough. First time here? Add your name —
+            the account is created automatically and this password protects it from then on.
           </p>
         </CardContent>
       </Card>

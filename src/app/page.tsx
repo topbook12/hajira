@@ -2,11 +2,13 @@
 
 import * as React from 'react'
 
+import { motion } from 'framer-motion'
 import { GraduationCap, LogOut, Loader2 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { getUser, setUser as persistUser, logout as serverLogout, type HajiraUser } from '@/lib/hajira-client'
+import { useHajiraToasts } from '@/components/hajira/shared'
 import InstallButton from '@/components/pwa/install-button'
 import LoginScreen from '@/components/hajira/login-screen'
 import TeacherClassesView from '@/components/hajira/teacher/classes-view'
@@ -24,6 +26,7 @@ type TeacherView = 'classes' | 'class-detail' | 'live' | 'report'
 type StudentView = StudentTab | 'class-detail'
 
 export default function HajiraPage() {
+  const { ok } = useHajiraToasts()
   const [booted, setBooted] = React.useState(false)
   const [user, setUser] = React.useState<HajiraUser | null>(null)
 
@@ -86,6 +89,7 @@ export default function HajiraPage() {
     setStudentClassId(null)
     setScanTick(0)
     setScanHandledTick(0)
+    ok('Signed out', 'See you in the next class!')
   }
 
   const teacherBackToClasses = () => {
@@ -207,6 +211,11 @@ export default function HajiraPage() {
 
   const showStudentTabs = !!user && user.role === 'STUDENT' && studentView !== 'class-detail'
 
+  const viewKey =
+    user?.role === 'TEACHER'
+      ? `${teacherView}:${selectedClassId ?? ''}:${liveSessionId ?? ''}:${reportClassId ?? ''}`
+      : `${studentView}:${studentClassId ?? ''}`
+
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       {user ? (
@@ -257,7 +266,7 @@ export default function HajiraPage() {
               view={studentView}
               onChange={(tab) => {
                 setStudentView(tab)
-                if (tab !== 'class-detail') setStudentClassId(null)
+                setStudentClassId(null)
               }}
               onScan={() => {
                 setStudentView('home')
@@ -266,7 +275,15 @@ export default function HajiraPage() {
             />
           </div>
         ) : null}
-        {body}
+        {/* keyed fade between views — subtle, 200ms, no layout jump */}
+        <motion.div
+          key={viewKey}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+        >
+          {body}
+        </motion.div>
       </main>
 
       {/* On a student's phone the fixed bottom tab bar replaces the footer —

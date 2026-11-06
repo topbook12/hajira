@@ -44,11 +44,12 @@ export function mmss(totalSec: number): string {
   return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`
 }
 
-/** English date-time, e.g. "Nov 5, 1:21 PM" */
+/** English date-time in Bangladesh time, e.g. "Nov 5, 1:21 PM" */
 export function fmtDateTime(input: string | Date): string {
   const d = typeof input === 'string' ? new Date(input) : input
   try {
     return d.toLocaleString('en-US', {
+      timeZone: 'Asia/Dhaka',
       day: 'numeric',
       month: 'short',
       hour: 'numeric',

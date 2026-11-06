@@ -1,7 +1,6 @@
 'use client'
 
 import {
-  Fingerprint,
   GraduationCap,
   Info,
   LogOut,
@@ -15,6 +14,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { getDeviceId, type HajiraUser } from '@/lib/hajira-client'
 import { openInstallGate } from '@/components/pwa/install-gate'
+import FingerprintCard from '@/components/hajira/fingerprint-card'
 
 /**
  * Student "Profile" tab — identity, device binding, install entry point and
@@ -60,7 +60,7 @@ export default function StudentProfileView({
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gold/25 text-ink">
               <Smartphone className="h-4.5 w-4.5" aria-hidden />
             </span>
-            <div className="min-w-0">
+            <div>
               <p className="text-sm font-semibold text-heading">This device</p>
               <p className="truncate font-mono text-xs text-label" title={deviceId}>
                 {deviceId ? `${deviceId.slice(0, 18)}…` : 'Not assigned yet'}
@@ -70,19 +70,11 @@ export default function StudentProfileView({
               </p>
             </div>
           </div>
-          <div className="flex items-start gap-3 rounded-xl border border-border/60 bg-cream-soft/60 px-3.5 py-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gold/25 text-ink">
-              <Fingerprint className="h-4.5 w-4.5" aria-hidden />
-            </span>
-            <div>
-              <p className="text-sm font-semibold text-heading">Fingerprint check-in</p>
-              <p className="text-xs text-label">
-                Optional at every check-in — supported devices show the sensor option automatically.
-              </p>
-            </div>
-          </div>
         </CardContent>
       </Card>
+
+      {/* fingerprint — real WebAuthn passkey management (register / require / remove) */}
+      <FingerprintCard role="STUDENT" />
 
       {/* how it works */}
       <Card className="card-3d">
