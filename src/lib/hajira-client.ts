@@ -462,6 +462,54 @@ export function bioSupported(): boolean {
   }
 }
 
+/**
+ * True when this page runs INSIDE another page (preview panel, embed, iframe).
+ * Browsers refuse WebAuthn prompts in cross-origin iframes unless the embedding
+ * site explicitly delegates the permission — which preview panels do not do.
+ * Users experience this as "fingerprint setup not working" with no reason
+ * given, so the UI checks and says exactly what to do instead.
+ */
+export function inIframeContext(): boolean {
+  try {
+    return typeof window !== 'undefined' && window.self !== window.top
+  } catch {
+    // Accessing window.top threw — that itself proves a foreign frame
+    return true
+  }
+}
+
+export type BioCapabilities = {
+  /** Browser supports WebAuthn at all */
+  webauthn: boolean
+  /** A fingerprint/face/device-PIN sensor is available to THIS browser */
+  platformAuthenticator: boolean
+  /** Page is embedded in another page (preview/iframe) — prompts are blocked */
+  inIframe: boolean
+}
+
+/**
+ * Full capability probe for the fingerprint feature. `bioSupported()` alone
+ * only says the API exists — it stayed true on desktops with no sensor and
+ * inside preview iframes, where every attempt then failed with a confusing
+ * "cancelled" error. This asks the browser the real questions.
+ */
+export async function bioCapabilities(): Promise<BioCapabilities> {
+  const webauthn = bioSupported()
+  const inIframe = inIframeContext()
+  let platformAuthenticator = false
+  if (webauthn) {
+    try {
+      const pkc = window.PublicKeyCredential as unknown as {
+        isUserVerifyingPlatformAuthenticatorAvailable?: () => Promise<boolean>
+      }
+      platformAuthenticator = (await pkc?.isUserVerifyingPlatformAuthenticatorAvailable?.()) ?? false
+    } catch {
+      platformAuthenticator = false
+    }
+  }
+  return { webauthn, platformAuthenticator, inIframe }
+}
+
 export type BioStatus = {
   enrolled: boolean
   biometricRequired: boolean
@@ -503,10 +551,20 @@ export async function fingerprintRegister(): Promise<void> {
   } catch (e) {
     const name = (e as DOMException)?.name
     if (name === 'NotAllowedError' || name === 'AbortError') {
-      throw new Error('Fingerprint setup was cancelled — try again when you are ready')
+      if (inIframeContext()) {
+        throw new Error(
+          'Browsers block fingerprint inside embedded pages — open Hajira in its own browser tab (not a preview) and try again'
+        )
+      }
+      throw new Error(
+        'Fingerprint setup was cancelled or timed out — make sure fingerprint/face unlock is set up on this device, then try again'
+      )
     }
     if (name === 'InvalidStateError') {
       throw new Error('This device already has a fingerprint saved for Hajira')
+    }
+    if (name === 'SecurityError') {
+      throw new Error('This page address does not match Hajira — open the app at its real web address and try again')
     }
     throw new Error('This device could not complete fingerprint setup')
   }
@@ -526,6 +584,11 @@ export async function fingerprintAssert(): Promise<void> {
   } catch (e) {
     const name = (e as DOMException)?.name
     if (name === 'NotAllowedError' || name === 'AbortError') {
+      if (inIframeContext()) {
+        throw new Error(
+          'Browsers block fingerprint inside embedded pages — open Hajira in its own browser tab and try again'
+        )
+      }
       throw new Error('Fingerprint verification was cancelled or timed out')
     }
     throw new Error('Fingerprint verification failed on this device')
@@ -546,6 +609,11 @@ export async function passkeyLogin(): Promise<HajiraUser> {
   } catch (e) {
     const name = (e as DOMException)?.name
     if (name === 'NotAllowedError' || name === 'AbortError') {
+      if (inIframeContext()) {
+        throw new Error(
+          'Browsers block fingerprint inside embedded pages — open Hajira in its own browser tab and sign in there'
+        )
+      }
       throw new Error(
         'No saved fingerprint for Hajira on this device — sign in with your phone number and password first, then add your fingerprint from Profile'
       )

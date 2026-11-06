@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   api,
-  bioSupported,
+  bioCapabilities,
   passkeyLogin,
   setUser as persistUser,
   type HajiraUser,
@@ -40,7 +40,20 @@ export default function LoginScreen({ onLogin }: { onLogin: (u: HajiraUser) => v
   const [teacherExists, setTeacherExists] = React.useState<boolean | null>(null)
   const [loading, setLoading] = React.useState(false)
   const [bioLoading, setBioLoading] = React.useState(false)
-  const bioOk = React.useMemo(() => bioSupported(), [])
+  // Show "Sign in with fingerprint" only where it can actually work: a real
+  // (non-embedded) page, WebAuthn available AND a fingerprint/face/PIN sensor
+  // present. The old API-existence check kept the button visible on sensor-less
+  // desktops and inside preview iframes, where tapping it always failed.
+  const [bioOk, setBioOk] = React.useState(false)
+  React.useEffect(() => {
+    let alive = true
+    bioCapabilities().then((c) => {
+      if (alive) setBioOk(c.webauthn && c.platformAuthenticator && !c.inIframe)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
 
   // Does the institute already have a teacher? The Teacher tab asks once so
   // the key field can explain itself: hidden entirely for the FIRST teacher
