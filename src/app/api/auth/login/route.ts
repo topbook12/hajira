@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { badRequest, forbidden } from '@/lib/hajira'
-import { isTransientDbError } from '@/lib/db'
+import { isSchemaDriftError, isTransientDbError } from '@/lib/db'
 import { hashPassword, setSessionCookie, verifyPassword } from '@/lib/auth'
 import { clientIp, rateLimit } from '@/lib/rate-limit'
 import { normalizeBdPhone } from '@/lib/phone'
@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
         const expected = process.env.TEACHER_SIGNUP_KEY || 'HAJIRA-TEACHER'
         if (teacherKey !== expected) {
           return forbidden(
-            'Invalid teacher key — a teacher account already exists for this institute. Ask your department for the institute teacher key.'
+            'Invalid teacher key — your institute already has teacher accounts. Ask the admin who set up Hajira for the institute key. (Signing in with an existing teacher account never needs a key.)'
           )
         }
       }
@@ -125,6 +125,15 @@ export async function POST(req: NextRequest) {
     if (isTransientDbError(e)) {
       return NextResponse.json(
         { error: 'Network hiccup while signing in — please try again' },
+        { status: 503 }
+      )
+    }
+    if (isSchemaDriftError(e)) {
+      // NEVER tell the user "sign in failed" for an infrastructure problem —
+      // they would read it as "my password is wrong" and stay locked out.
+      console.error('[api:error][login][schema-drift]', e)
+      return NextResponse.json(
+        { error: 'Hajira is upgrading its database — try again in a minute' },
         { status: 503 }
       )
     }

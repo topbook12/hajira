@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getUserIdFromRequest } from '@/lib/auth'
-import { isTransientDbError } from '@/lib/db'
+import { isSchemaDriftError, isTransientDbError } from '@/lib/db'
 
 export const SLOT_MS = 30_000 // rotating QR/PIN changes every 30 seconds
 
@@ -38,6 +38,12 @@ export function serverError(e: unknown) {
   if (isTransientDbError(e)) {
     return NextResponse.json(
       { error: 'The network hiccuped while reaching the database — please try again' },
+      { status: 503 }
+    )
+  }
+  if (isSchemaDriftError(e)) {
+    return NextResponse.json(
+      { error: 'Hajira is upgrading its database — try again in a minute' },
       { status: 503 }
     )
   }

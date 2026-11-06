@@ -41,6 +41,26 @@ export function isTransientDbError(e: unknown): boolean {
   return TRANSIENT_MARKERS.some((m) => text.includes(m))
 }
 
+/**
+ * Schema drift (missing table/column — e.g. a deploy landed before the
+ * database was synced). An INFRASTRUCTURE problem, never the user's fault:
+ * it must NOT surface as "wrong password" or "sign in failed". Routes use
+ * this to answer with an honest 503 "we are upgrading, try in a minute"
+ * while the build-time sync (scripts/sync-turso.mjs) heals the schema.
+ */
+export function isSchemaDriftError(e: unknown): boolean {
+  if (!e || typeof e !== 'object') return false
+  const err = e as { message?: string; code?: string; cause?: { code?: string; message?: string } }
+  const text = `${err.message ?? ''} ${err.code ?? ''} ${err.cause?.code ?? ''} ${err.cause?.message ?? ''}`
+  const t = text.toLowerCase()
+  return (
+    t.includes('no such column') ||
+    t.includes('no such table') ||
+    t.includes('p2021') || // Prisma: table does not exist
+    t.includes('p2022') // Prisma: column does not exist
+  )
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 /** Retry transient network failures (max 4 attempts, short backoff + jitter). */

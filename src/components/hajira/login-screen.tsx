@@ -3,7 +3,7 @@
 import * as React from 'react'
 
 import { motion } from 'framer-motion'
-import { Fingerprint, GraduationCap, Loader2, MapPin, Smartphone, Timer } from 'lucide-react'
+import { CheckCircle2, Fingerprint, GraduationCap, KeyRound, Loader2, MapPin, Smartphone, Timer } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -37,9 +37,29 @@ export default function LoginScreen({ onLogin }: { onLogin: (u: HajiraUser) => v
   const [phone, setPhone] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [teacherKey, setTeacherKey] = React.useState('')
+  const [teacherExists, setTeacherExists] = React.useState<boolean | null>(null)
   const [loading, setLoading] = React.useState(false)
   const [bioLoading, setBioLoading] = React.useState(false)
   const bioOk = React.useMemo(() => bioSupported(), [])
+
+  // Does the institute already have a teacher? The Teacher tab asks once so
+  // the key field can explain itself: hidden entirely for the FIRST teacher
+  // (no key needed — the #1 confusion we saw in the field), shown with real
+  // instructions once teachers exist. `null` (unknown) keeps a neutral field.
+  React.useEffect(() => {
+    if (role !== 'TEACHER' || teacherExists !== null) return
+    let alive = true
+    api<{ teacherExists: boolean | null }>('/api/auth/teacher-status')
+      .then((r) => {
+        if (alive) setTeacherExists(r.teacherExists)
+      })
+      .catch(() => {
+        /* stays null — neutral field, server still enforces the real rule */
+      })
+    return () => {
+      alive = false
+    }
+  }, [role, teacherExists])
 
   const signWithFingerprint = async () => {
     setBioLoading(true)
@@ -103,6 +123,13 @@ export default function LoginScreen({ onLogin }: { onLogin: (u: HajiraUser) => v
       }
       if (message.includes('Wrong password')) {
         err('This account already exists', `${message} — your account was created the first time you signed in`)
+        return
+      }
+      if (message.includes('Invalid teacher key')) {
+        err(
+          'Teacher key needed',
+          'Your institute already has teacher accounts. Ask the admin who set up Hajira for the key — or just sign in with your own account (signing in never needs a key).'
+        )
         return
       }
       err('Sign in failed', message)
@@ -194,22 +221,47 @@ export default function LoginScreen({ onLogin }: { onLogin: (u: HajiraUser) => v
               />
             </div>
             {role === 'TEACHER' ? (
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="hajira-teacher-key">
-                  Teacher key <span className="font-normal text-label">(optional)</span>
-                </Label>
-                <Input
-                  id="hajira-teacher-key"
-                  value={teacherKey}
-                  onChange={(e) => setTeacherKey(e.target.value)}
-                  placeholder="Leave empty if you are the first teacher"
-                  autoComplete="off"
-                />
-                <p className="text-xs text-label">
-                  The <strong>first teacher</strong> of your institute signs up without a key. After
-                  that, new teachers need the institute key from your department.
-                </p>
-              </div>
+              teacherExists === false ? (
+                <div
+                  className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900"
+                  role="status"
+                >
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
+                  <span>
+                    You&apos;ll be the <strong>first teacher</strong> of your institute — no key
+                    needed. Just fill in your name, phone and a password.
+                  </span>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="hajira-teacher-key">
+                    <KeyRound className="mr-1 inline h-3.5 w-3.5" aria-hidden />
+                    {teacherExists === true ? 'Institute teacher key' : 'Teacher key'}
+                    {teacherExists === true ? '' : ' '}
+                    {teacherExists !== true && <span className="font-normal text-label">(optional)</span>}
+                  </Label>
+                  <Input
+                    id="hajira-teacher-key"
+                    value={teacherKey}
+                    onChange={(e) => setTeacherKey(e.target.value)}
+                    placeholder={teacherExists === true ? 'Ask your institute admin' : 'Leave empty if you are the first teacher'}
+                    autoComplete="off"
+                  />
+                  <p className="text-xs text-label">
+                    {teacherExists === true ? (
+                      <>
+                        Your institute already has teachers — new teachers need the institute key
+                        from the admin who set up Hajira. <strong>Signing in never needs a key.</strong>
+                      </>
+                    ) : (
+                      <>
+                        The <strong>first teacher</strong> of your institute signs up without a key.
+                        After that, new teachers need the institute key.
+                      </>
+                    )}
+                  </p>
+                </div>
+              )
             ) : null}
             <Button
               type="submit"
