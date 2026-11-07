@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { getUser, setUser as persistUser, logout as serverLogout, type HajiraUser } from '@/lib/hajira-client'
 import { useHajiraToasts } from '@/components/hajira/shared'
+import SafeBoundary from '@/components/hajira/error-boundary'
 import InstallButton from '@/components/pwa/install-button'
 import LoginScreen from '@/components/hajira/login-screen'
 import TeacherClassesView from '@/components/hajira/teacher/classes-view'
@@ -282,7 +283,9 @@ export default function HajiraPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2, ease: 'easeOut' }}
         >
-          {body}
+          {/* A crash in one view must never blank the whole app again —
+              degrade to a recoverable card inside the working shell. */}
+          <SafeBoundary key={viewKey}>{body}</SafeBoundary>
         </motion.div>
       </main>
 

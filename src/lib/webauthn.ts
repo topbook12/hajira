@@ -90,14 +90,32 @@ export function signChallenge(payload: ChallengePayload): string {
  * Peel the browser's base64url wrapper off a challenge. '.' cannot appear in
  * base64url, so the presence of a dot unambiguously means the argument is
  * already the inner 'body.sig' token (handy for tests/manual verification).
+ *
+ * The wrapper may be nested: @simplewebauthn/server v13+ UTF-8-encodes a
+ * string `challenge` option and base64url-encodes the bytes again, so a
+ * challenge that was ALREADY base64url reaches clientDataJSON double-wrapped:
+ *
+ *   base64url( utf8( base64url( 'body.sig' ) ) )
+ *
+ * Decode in a loop until the signed token (with its '.') appears — tolerant
+ * of direct tokens, single and double wrapping alike. Anything that still
+ * shows no dot after 3 passes is not ours; the HMAC check downstream is the
+ * final authority anyway.
  */
 function unwrapChallenge(challenge: string): string | null {
-  if (challenge.includes('.')) return challenge
-  try {
-    const decoded = Buffer.from(challenge, 'base64url').toString('utf8')
-    if (decoded.includes('.')) return decoded
-  } catch {
-    /* fall through */
+  let cur = challenge
+  for (let pass = 0; pass < 3; pass++) {
+    if (cur.includes('.')) return cur
+    let decoded: string
+    try {
+      decoded = Buffer.from(cur, 'base64url').toString('utf8')
+    } catch {
+      return null
+    }
+    // Base64url decode never throws on this input — detect no-progress or
+    // binary garbage instead (a valid decode is printable and shorter).
+    if (!decoded.length || decoded === cur || /[\uFFFD]/.test(decoded)) return null
+    cur = decoded
   }
   return null
 }

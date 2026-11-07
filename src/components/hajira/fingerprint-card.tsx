@@ -40,6 +40,15 @@ export default function FingerprintCard({ role = 'STUDENT' }: { role?: 'TEACHER'
   const [status, setStatus] = React.useState<BioStatus | null>(null)
   const [busy, setBusy] = React.useState<'register' | 'toggle' | `del-${string}` | null>(null)
 
+  // Derived status — declared BEFORE `cardTitle` below, whose JSX reads
+  // `enrolled`. These used to sit after it: the moment a device with a real
+  // fingerprint sensor resolved its capabilities, the JSX evaluated `enrolled`
+  // in its temporal dead zone and crashed the whole app ("Application error:
+  // a client-side exception has occurred").
+  const enrolled = status?.enrolled ?? false
+  const required = status?.biometricRequired ?? false
+  const credentials = status?.credentials ?? []
+
   React.useEffect(() => {
     let alive = true
     bioCapabilities().then((c) => {
@@ -201,10 +210,6 @@ export default function FingerprintCard({ role = 'STUDENT' }: { role?: 'TEACHER'
       </Card>
     )
   }
-
-  const enrolled = status?.enrolled ?? false
-  const required = status?.biometricRequired ?? false
-  const credentials = status?.credentials ?? []
 
   return (
     <Card className="card-3d">
