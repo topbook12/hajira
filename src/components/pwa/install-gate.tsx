@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 
+import { getUser } from '@/lib/hajira-client'
 import {
   CheckCircle2,
   Download,
@@ -160,9 +161,13 @@ export default function InstallGate() {
   }, [computeMode])
 
   /* auto-open once per visit, shortly after load — never while the user is
-     mid-typing / mid-tap (a popup landing on the keyboard feels broken) */
+     mid-typing / mid-tap (a popup landing on the keyboard feels broken), and
+     never over a SIGNED-IN session: a teacher mid-class or a student about to
+     check in must never find their app covered by a popup. They can still
+     install from the header button / login-screen pill anytime. */
   React.useEffect(() => {
     const t = setTimeout(() => {
+      if (getUser()) return
       if (!autoShowEligible()) return
       const el = document.activeElement
       const typing = !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')

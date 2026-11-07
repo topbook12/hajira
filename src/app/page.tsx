@@ -49,6 +49,9 @@ export default function HajiraPage() {
 
   /* read persisted user after mount (no hydration mismatch) */
   React.useEffect(() => {
+    // Tell the inline boot watchdog (layout.tsx) that this page hydrated —
+    // otherwise a fully working slow-network load gets "healed" at 15s.
+    ;(window as unknown as { __hajiraBooted?: boolean }).__hajiraBooted = true
     setUser(getUser())
     setBooted(true)
     // server rejected the session cookie (expired/tampered) -> back to login

@@ -13,7 +13,7 @@
  * a registered fetch handler — both provided here.
  */
 
-const CACHE = 'hajira-v1'
+const CACHE = 'hajira-v2' // bump on each breaking shell change: activation deletes every older cache
 const SHELL = ['/', '/offline.html']
 const STATIC_PATTERNS = ['/_next/static/', '/icons/']
 
@@ -60,7 +60,21 @@ self.addEventListener('fetch', (event) => {
           return fresh
         } catch {
           const cached = await caches.match(req, { ignoreSearch: true })
-          return cached || (await caches.match('/offline.html')) || Response.error()
+          if (cached) {
+            // Serve the cached shell, but quietly revalidate it in the
+            // background: a stale shell can reference chunks purged by a
+            // newer deploy — the sooner it refreshes, the fewer devices
+            // fall into the "looks loaded but frozen" trap.
+            fetch(req)
+              .then((res) => {
+                if (res && res.ok) {
+                  caches.open(CACHE).then((c) => c.put('/', res)).catch(() => {})
+                }
+              })
+              .catch(() => {})
+            return cached
+          }
+          return (await caches.match('/offline.html')) || Response.error()
         }
       })()
     )
