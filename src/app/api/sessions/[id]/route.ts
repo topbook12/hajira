@@ -44,6 +44,7 @@ async function GET_impl(
         durationSec: session.durationSec,
         radiusM: session.radiusM,
         requireGps: session.requireGps,
+        requireCode: session.requireCode,
       },
       rosterCount,
       checkIns: checkIns.map((c) => ({
@@ -86,6 +87,8 @@ async function GET_impl(
       startedAt: session.startedAt,
       endsAt: session.endsAt,
       durationSec: session.durationSec,
+      requireGps: session.requireGps,
+      requireCode: session.requireCode,
     },
     rosterCount,
     presentCount,

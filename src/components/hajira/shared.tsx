@@ -112,6 +112,7 @@ export function PulsingDot({ color = 'red' }: { color?: 'red' | 'green' }) {
 const METHOD_LABEL: Record<string, string> = {
   QR: 'QR scan',
   PIN: 'Code',
+  GPS: 'Location',
   BUTTON: 'Button',
   MANUAL: 'Manual',
 }

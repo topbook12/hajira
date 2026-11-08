@@ -147,10 +147,11 @@ export default function CheckinDialog({
     }
   }, [open, locate, session?.requireGps])
 
-  /* deep-open the camera (Scan FAB) */
+  /* deep-open the camera (Scan FAB) — but never for location-only sessions:
+     there is no code to scan, so the camera would only confuse */
   React.useEffect(() => {
-    if (open && openScannerNow && !result) setScannerOpen(true)
-  }, [open, openScannerNow, result])
+    if (open && openScannerNow && !result && session?.requireCode !== false) setScannerOpen(true)
+  }, [open, openScannerNow, result, session?.requireCode])
 
   const verifyFingerprint = async () => {
     setBio('verifying')
@@ -233,11 +234,10 @@ export default function CheckinDialog({
   }
 
   const locRequired = !remote
-  const stepLabels = [
-    locRequired ? 'Location' : 'Location (optional)',
-    session?.requireCode === false ? 'Code (not needed)' : 'Code',
-    'Confirm',
-  ]
+  const codeNotNeeded = session?.requireCode === false
+  const stepLabels = codeNotNeeded
+    ? [locRequired ? 'Location' : 'Location (optional)', 'Confirm']
+    : [locRequired ? 'Location' : 'Location (optional)', 'Code', 'Confirm']
 
   return (
     <>
@@ -249,7 +249,9 @@ export default function CheckinDialog({
               {session?.teacherName ? `${session.teacherName} • ` : ''}
               {remote
                 ? 'Remote check-in — confirm from anywhere'
-                : 'Confirm your attendance in 3 steps'}
+                : codeNotNeeded
+                  ? 'Location-only check-in — no code needed'
+                  : 'Confirm your attendance in 3 steps'}
             </DialogDescription>
           </DialogHeader>
 
@@ -266,6 +268,23 @@ export default function CheckinDialog({
                 <p className="mt-0.5 text-xs leading-relaxed text-body">
                   Your teacher turned location off for this session — you can check in from
                   anywhere, even from home. Adding your location is optional.
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          {/* Location-only banner — replaces the code step entirely */}
+          {codeNotNeeded ? (
+            <div className="flex items-start gap-2.5 rounded-xl border border-green/25 bg-green/10 px-3.5 py-3">
+              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green/15">
+                <MapPin className="h-4 w-4 text-green" aria-hidden />
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-green">No QR or PIN needed</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-body">
+                  {remote
+                    ? 'Just confirm below — nothing to scan or type.'
+                    : 'Your location decides attendance. Confirm from your seat — nothing to scan or type.'}
                 </p>
               </div>
             </div>
@@ -454,46 +473,43 @@ export default function CheckinDialog({
                 </div>
               )}
 
-              {/* Step 2 — code: scan first, type as fallback */}
-              <div className="flex flex-col gap-2.5">
-                <Label htmlFor="checkin-code">
-                  {session?.requireCode === false
-                    ? 'QR / PIN code (not required this session)'
-                    : 'Attendance code'}
-                </Label>
+              {/* Step 2 — code: scan first, type as fallback (skipped entirely
+                  in location-only sessions — the teacher shows no code) */}
+              {codeNotNeeded ? null : (
+                <div className="flex flex-col gap-2.5">
+                  <Label htmlFor="checkin-code">Attendance code</Label>
 
-                <Button
-                  type="button"
-                  onClick={() => setScannerOpen(true)}
-                  className="btn-3d btn-ink h-13 w-full gap-2.5 py-3.5 text-base font-bold"
-                >
-                  <ScanLine className="h-5 w-5" aria-hidden />
-                  Scan QR code
-                </Button>
+                  <Button
+                    type="button"
+                    onClick={() => setScannerOpen(true)}
+                    className="btn-3d btn-ink h-13 w-full gap-2.5 py-3.5 text-base font-bold"
+                  >
+                    <ScanLine className="h-5 w-5" aria-hidden />
+                    Scan QR code
+                  </Button>
 
-                <div className="flex items-center gap-2" aria-hidden>
-                  <span className="h-px flex-1 bg-border" />
-                  <span className="text-[11px] font-medium uppercase tracking-wide text-label">
-                    or type the code
-                  </span>
-                  <span className="h-px flex-1 bg-border" />
+                  <div className="flex items-center gap-2" aria-hidden>
+                    <span className="h-px flex-1 bg-border" />
+                    <span className="text-[11px] font-medium uppercase tracking-wide text-label">
+                      or type the code
+                    </span>
+                    <span className="h-px flex-1 bg-border" />
+                  </div>
+
+                  <Input
+                    id="checkin-code"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    placeholder="6-digit code from the projector"
+                    className="h-11 font-mono"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                  />
+                  <p className="text-xs text-label">
+                    The projector QR refreshes every 30 seconds — scanning is fastest.
+                  </p>
                 </div>
-
-                <Input
-                  id="checkin-code"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  placeholder="6-digit code from the projector"
-                  className="h-11 font-mono"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                />
-                <p className="text-xs text-label">
-                  {session?.requireCode === false
-                    ? 'The teacher made the code optional — you can skip it and just confirm.'
-                    : 'The projector QR refreshes every 30 seconds — scanning is fastest.'}
-                </p>
-              </div>
+              )}
 
               {/* Step 3 — fingerprint (server-verified WebAuthn) */}
               <div

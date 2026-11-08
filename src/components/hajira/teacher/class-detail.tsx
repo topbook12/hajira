@@ -373,6 +373,16 @@ export default function TeacherClassDetail({
                   </span>
                 </p>
               )}
+              {!requireCode ? (
+                <p className="flex items-start gap-1.5 rounded-lg bg-green/10 px-2.5 py-2 text-xs leading-relaxed text-ink">
+                  <ScanLine className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span>
+                    <b>Location-only mode</b> — no QR or PIN is shown at all. Students see the
+                    session in their app and confirm from their seats;{' '}
+                    {requireGps ? 'the GPS radius decides who is present.' : 'everyone enrolled can confirm.'}
+                  </span>
+                </p>
+              ) : null}
             </div>
           </div>
 

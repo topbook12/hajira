@@ -12,6 +12,7 @@ import {
   ListChecks,
   Loader2,
   MapPin,
+  Radar,
   Square,
   X,
 } from 'lucide-react'
@@ -123,9 +124,10 @@ export default function TeacherLiveSession({
     return () => clearInterval(iv)
   }, [ended, load])
 
-  /* rotating QR / PIN poll — every 5s while live */
+  /* rotating QR / PIN poll — every 5s while live. LOCATION-ONLY sessions
+     (requireCode=false) show no code at all, so there is nothing to poll. */
   React.useEffect(() => {
-    if (ended) {
+    if (ended || session?.requireCode === false) {
       setQr(null)
       return
     }
@@ -144,7 +146,7 @@ export default function TeacherLiveSession({
       alive = false
       clearInterval(iv)
     }
-  }, [sessionId, ended])
+  }, [sessionId, ended, session?.requireCode])
 
   /* refetch once when the time window expires (server marks effective CLOSED) */
   React.useEffect(() => {
@@ -249,6 +251,7 @@ export default function TeacherLiveSession({
               {session.requireGps
                 ? `Radius: ${session.radiusM} m • GPS verification on`
                 : 'Remote check-in — no GPS required'}
+              {session.requireCode === false ? ' • Location-only — no code shown' : ''}
             </p>
           </div>
           <div className="text-left sm:text-right" aria-live="polite">
@@ -284,8 +287,31 @@ export default function TeacherLiveSession({
         </Card>
       ) : null}
 
-      {/* QR + PIN (hidden when ended) */}
-      {!ended && qr ? (
+      {/* QR + PIN (hidden when ended or when the session is location-only) */}
+      {!ended && session.requireCode === false ? (
+        <Card className="card-3d card-inner-glow corner-glow">
+          <CardContent className="relative flex flex-col items-center gap-3 p-6 text-center">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-green/12" aria-hidden>
+              <Radar className="h-8 w-8 text-green" />
+            </span>
+            <p className="font-display text-lg text-heading">Location-only check-in</p>
+            <p className="max-w-md text-sm leading-relaxed text-body">
+              No QR or PIN is needed — students see this session in their app and confirm
+              from their seats. Nothing to show on the projector.
+            </p>
+            {session.requireGps ? (
+              <p className="flex items-center gap-1.5 rounded-full bg-green/10 px-3 py-1.5 text-xs font-semibold text-green">
+                <MapPin className="h-3.5 w-3.5" aria-hidden />
+                Only students within {session.radiusM} m of the room are counted present
+              </p>
+            ) : (
+              <p className="flex items-center gap-1.5 rounded-full bg-gold/20 px-3 py-1.5 text-xs font-semibold text-ink">
+                Remote mode — every enrolled student can confirm from anywhere
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      ) : !ended && qr ? (
         <Card className="card-3d card-inner-glow corner-glow">
           <CardContent className="relative flex flex-col items-center gap-3 p-6">
             <p className="text-sm font-medium text-body">

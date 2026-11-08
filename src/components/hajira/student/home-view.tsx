@@ -3,7 +3,7 @@
 import * as React from 'react'
 
 import { motion } from 'framer-motion'
-import { CalendarDays, CheckCircle2, Flame, Globe, Radio, ScanLine, TrendingUp, Users } from 'lucide-react'
+import { CalendarDays, CheckCircle2, Flame, Globe, MapPin, Radio, ScanLine, TrendingUp, Users } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -287,6 +287,11 @@ export default function StudentHomeView({
                             <Globe className="h-3.5 w-3.5" aria-hidden />
                             Remote check-in OK — works from anywhere
                           </p>
+                        ) : s.requireCode === false ? (
+                          <p className="flex items-center gap-1.5 text-xs font-medium text-green">
+                            <MapPin className="h-3.5 w-3.5" aria-hidden />
+                            Location-only — no code needed, just confirm
+                          </p>
                         ) : null}
                         <Button
                           onClick={() => {
@@ -296,7 +301,7 @@ export default function StudentHomeView({
                           className="btn-3d btn-ink h-11 w-full text-base font-bold"
                         >
                           {s.requireCode === false ? (
-                            'Check in now'
+                            'Check in — one tap'
                           ) : (
                             <>
                               <ScanLine className="h-5 w-5" aria-hidden />

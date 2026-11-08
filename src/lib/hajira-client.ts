@@ -130,6 +130,8 @@ export type TeacherSessionData = {
     durationSec: number
     radiusM: number
     requireGps: boolean
+    /** false = location-only session: no QR / PIN is shown at all */
+    requireCode: boolean
   }
   rosterCount: number
   checkIns: LiveCheckInRow[]
@@ -146,6 +148,8 @@ export type StudentSessionData = {
     startedAt: string
     endsAt: string
     durationSec: number
+    requireGps: boolean
+    requireCode: boolean
   }
   rosterCount: number
   presentCount: number

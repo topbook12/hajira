@@ -58,6 +58,8 @@ async function POST_impl(req: NextRequest) {
   // Proof 3 (WHEN + anti-forwarding): rotating QR payload or 6-digit PIN.
   // The code changes every 30s and is signed per session — a screenshot sent
   // to an off-campus friend is useless by the time they try it.
+  // LOCATION-ONLY sessions (requireCode=false) skip this proof entirely:
+  // the teacher chose to admit students purely by GPS presence.
   if (code) {
     const v = verifyCode(code, session)
     if (v.ok) {
@@ -78,6 +80,12 @@ async function POST_impl(req: NextRequest) {
       gpsOk = distanceM <= session.radiusM
       if (!gpsOk) flags.push(`Outside classroom range (~${Math.round(distanceM)} m)`)
     }
+  }
+
+  // In a location-only session the GPS fix IS the attendance proof — record
+  // it as the method so the report/Excel shows how every student was counted.
+  if (!code && !session.requireCode && lat != null && lng != null) {
+    method = 'GPS'
   }
 
   // Proof 1 (WHO): device binding — one device per student
