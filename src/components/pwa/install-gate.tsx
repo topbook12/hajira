@@ -62,6 +62,30 @@ const DISMISSALS_KEY = 'hajira-install-dismissals'
 const INSTALLED_KEY = 'hajira-installed'
 const LEGACY_DISMISS_KEY = 'hajira-install-dismissed' // old v1 banner key
 
+/** True once the visitor has actually done something on the page (tap, key,
+ *  or focused a form field). An auto-popup must NEVER land on someone who is
+ *  already using the app — that is how it ends up covering the login form
+ *  mid-fill and blocks sign-in (the exact "platform loading" complaint). */
+let userInteracted = false
+if (typeof window !== 'undefined') {
+  const markInteracted = () => {
+    userInteracted = true
+  }
+  window.addEventListener('pointerdown', markInteracted, { capture: true, once: true })
+  window.addEventListener('keydown', markInteracted, { capture: true, once: true })
+  window.addEventListener('touchstart', markInteracted, { capture: true, once: true })
+  window.addEventListener(
+    'focusin',
+    (e) => {
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) {
+        userInteracted = true
+      }
+    },
+    { capture: true }
+  )
+}
+
 const SNOOZE_MS = 3 * 24 * 60 * 60 * 1000 // ask again after 3 days
 const MAX_AUTO_ASKS = 2 // after that, only manual entry points
 
@@ -142,6 +166,7 @@ export default function InstallGate() {
   const [mode, setMode] = React.useState<Mode>('manual')
   const [promptEvt, setPromptEvt] = React.useState<InstallPromptEvent | null>(null)
   const [installing, setInstalling] = React.useState(false)
+  const [autoOpened, setAutoOpened] = React.useState(false)
 
   const computeMode = React.useCallback((): Mode => {
     if (window.__hajiraInstallEvt) return 'native'
@@ -160,15 +185,17 @@ export default function InstallGate() {
     return () => window.removeEventListener('hajira:install-ready', syncEvt)
   }, [computeMode])
 
-  /* auto-open once per visit, shortly after load — never while the user is
-     mid-typing / mid-tap (a popup landing on the keyboard feels broken), and
-     never over a SIGNED-IN session: a teacher mid-class or a student about to
-     check in must never find their app covered by a popup. They can still
-     install from the header button / login-screen pill anytime. */
+  /* auto-open once per visit, shortly after load — but ONLY for a visitor who
+     has not interacted with the page at all (still just reading the landing).
+     Anyone filling the login form, scrolling after a tap, or already signed in
+     is never interrupted: a popup landing on the keyboard (or over the Sign in
+     button) is exactly the "app feels broken" moment. Entry points in the
+     header + login-screen pill stay available for everyone. */
   React.useEffect(() => {
     const t = setTimeout(() => {
       if (getUser()) return
       if (!autoShowEligible()) return
+      if (userInteracted) return // they're already using the page — hands off
       const el = document.activeElement
       const typing = !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')
       if (typing) return // they're busy — entry points stay available
@@ -176,11 +203,27 @@ export default function InstallGate() {
       // Only auto-interrupt when we have something genuinely useful to say
       if (m === 'native' || m === 'ios') {
         setMode(m)
+        setAutoOpened(true)
         setOpen(true)
       }
     }, 2600)
     return () => clearTimeout(t)
   }, [])
+
+  /* safety net: if an auto-opened popup is up and the user focuses any field,
+     yield immediately — the form wins over the promo. Manual opens stay. */
+  React.useEffect(() => {
+    if (!open || !autoOpened) return
+    const onFieldFocus = (e: FocusEvent) => {
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) {
+        setAutoOpened(false)
+        setOpen(false)
+      }
+    }
+    document.addEventListener('focusin', onFieldFocus)
+    return () => document.removeEventListener('focusin', onFieldFocus)
+  }, [open, autoOpened])
 
   /* manual entry points (header button, login pill) + install lifecycle */
   React.useEffect(() => {
@@ -197,6 +240,7 @@ export default function InstallGate() {
       }
       setStage('offer')
       setMode(computeMode())
+      setAutoOpened(false)
       setOpen(true)
     }
     const onNativeInstall = () => {
