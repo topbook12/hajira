@@ -19,7 +19,8 @@ async function POST_impl(req: NextRequest) {
   const durationSec = Math.min(Math.max(Number(body?.durationSec) || 120, 30), 600)
   const radiusM = Math.min(Math.max(Number(body?.radiusM) || 100, 30), 1000)
   let requireGps = !!body?.requireGps
-  const requireCode = body?.requireCode === undefined ? true : !!body.requireCode
+  let requireCode = body?.requireCode === undefined ? true : !!body.requireCode
+  let autoPresence = !!body?.autoPresence
   const lat = body?.lat == null ? null : Number(body.lat)
   const lng = body?.lng == null ? null : Number(body.lng)
 
@@ -41,6 +42,19 @@ async function POST_impl(req: NextRequest) {
     warning = 'Location unavailable — session started without GPS verification'
   }
 
+  // AUTO PRESENCE — passive attendance. It is built on the GPS fence (the
+  // students' reported location IS the proof), so without a fence the mode
+  // is meaningless: degrade honestly to a normal session. It also never
+  // shows a code — nothing to scan, nothing to type.
+  if (autoPresence && !requireGps) {
+    autoPresence = false
+    requireCode = !!body?.requireCode
+    warning = 'Auto attendance needs the classroom location — started as a normal session instead'
+  }
+  if (autoPresence) {
+    requireCode = false
+  }
+
   const endsAt = new Date(Date.now() + durationSec * 1000)
   const session = await db.session.create({
     data: {
@@ -51,6 +65,7 @@ async function POST_impl(req: NextRequest) {
       radiusM,
       requireGps,
       requireCode,
+      autoPresence,
       durationSec,
       endsAt,
       status: 'ACTIVE',

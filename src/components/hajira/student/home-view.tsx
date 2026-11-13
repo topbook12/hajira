@@ -27,6 +27,7 @@ import {
   useHajiraToasts,
 } from '@/components/hajira/shared'
 import CheckinDialog from '@/components/hajira/student/checkin-dialog'
+import AutoPresenceBeacon from '@/components/hajira/student/auto-presence'
 
 /** Per-session ticking timer */
 function SessionTimer({ endsAt }: { endsAt: string }) {
@@ -176,6 +177,19 @@ export default function StudentHomeView({
   const liveCount = (sessions ?? []).filter((s) => !checkedMap[s.id]).length
   const onTrack = (totals?.overallPct ?? 0) >= 70
 
+  /* stable identity — the auto beacon's interval depends on its callbacks */
+  const autoRecorded = React.useCallback(() => {
+    load()
+    loadSlow()
+  }, [load, loadSlow])
+  const autoManual = React.useCallback(
+    (s: ActiveSessionInfo) => {
+      setOpenScannerNow(false)
+      setCheckinSession(s)
+    },
+    []
+  )
+
   return (
     <section aria-label="Student home" className="flex flex-col gap-6">
       {/* ===== Hero — attendance at a glance ===== */}
@@ -273,7 +287,17 @@ export default function StudentHomeView({
                       <SessionTimer endsAt={s.endsAt} />
                     </div>
 
-                    {checkedMap[s.id] ? (
+                    {s.autoPresence ? (
+                      /* AUTO PRESENCE — the app does the work: beacon every
+                         15s while open, status settles on the card. The
+                         manual dialog stays one tap away as a safety net. */
+                      <AutoPresenceBeacon
+                        session={s}
+                        user={user}
+                        onManual={() => autoManual(s)}
+                        onRecorded={autoRecorded}
+                      />
+                    ) : checkedMap[s.id] ? (
                       <div className="flex items-center justify-between gap-2 rounded-lg bg-green/10 px-3 py-2.5">
                         <span className="flex items-center gap-1.5 text-sm font-semibold text-green">
                           <CheckCircle2 className="h-4 w-4" aria-hidden />

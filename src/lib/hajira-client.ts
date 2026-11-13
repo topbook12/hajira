@@ -68,6 +68,8 @@ export type ActiveSessionInfo = {
   requireGps: boolean
   /** Rotating QR / PIN required for this session */
   requireCode: boolean
+  /** Auto attendance: app-open students inside the fence are counted without any tap */
+  autoPresence?: boolean
   endsAt: string
   durationSec: number
   startedAt: string
@@ -132,6 +134,8 @@ export type TeacherSessionData = {
     requireGps: boolean
     /** false = location-only session: no QR / PIN is shown at all */
     requireCode: boolean
+    /** auto attendance: students counted passively by location beacons */
+    autoPresence?: boolean
   }
   rosterCount: number
   checkIns: LiveCheckInRow[]
@@ -150,6 +154,7 @@ export type StudentSessionData = {
     durationSec: number
     requireGps: boolean
     requireCode: boolean
+    autoPresence?: boolean
   }
   rosterCount: number
   presentCount: number

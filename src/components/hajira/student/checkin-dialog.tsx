@@ -50,6 +50,8 @@ type CheckinSession = {
   requireGps?: boolean
   /** true = rotating QR / PIN is required */
   requireCode?: boolean
+  /** auto attendance session — location is beaconed automatically */
+  autoPresence?: boolean
 }
 
 type BioState = 'idle' | 'verifying' | 'ok'
@@ -249,9 +251,11 @@ export default function CheckinDialog({
               {session?.teacherName ? `${session.teacherName} • ` : ''}
               {remote
                 ? 'Remote check-in — confirm from anywhere'
-                : codeNotNeeded
-                  ? 'Location-only check-in — no code needed'
-                  : 'Confirm your attendance in 3 steps'}
+                : session?.autoPresence
+                  ? 'Auto attendance — your location is counted while the app stays open. Confirm below only if you need to.'
+                  : codeNotNeeded
+                    ? 'Location-only check-in — no code needed'
+                    : 'Confirm your attendance in 3 steps'}
             </DialogDescription>
           </DialogHeader>
 

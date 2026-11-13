@@ -251,7 +251,11 @@ export default function TeacherLiveSession({
               {session.requireGps
                 ? `Radius: ${session.radiusM} m • GPS verification on`
                 : 'Remote check-in — no GPS required'}
-              {session.requireCode === false ? ' • Location-only — no code shown' : ''}
+              {session.autoPresence
+                ? ' • Auto attendance — counted by location, no-shows marked absent'
+                : session.requireCode === false
+                  ? ' • Location-only — no code shown'
+                  : ''}
             </p>
           </div>
           <div className="text-left sm:text-right" aria-live="polite">
@@ -294,10 +298,13 @@ export default function TeacherLiveSession({
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-green/12" aria-hidden>
               <Radar className="h-8 w-8 text-green" />
             </span>
-            <p className="font-display text-lg text-heading">Location-only check-in</p>
+            <p className="font-display text-lg text-heading">
+              {session.autoPresence ? 'Auto attendance running' : 'Location-only check-in'}
+            </p>
             <p className="max-w-md text-sm leading-relaxed text-body">
-              No QR or PIN is needed — students see this session in their app and confirm
-              from their seats. Nothing to show on the projector.
+              {session.autoPresence
+                ? `Students keep the app open — anyone inside the ${session.radiusM} m radius is counted present automatically, with no tap at all. When the window ends, everyone not counted is marked absent. You can still override any student below.`
+                : 'No QR or PIN is needed — students see this session in their app and confirm from their seats. Nothing to show on the projector.'}
             </p>
             {session.requireGps ? (
               <p className="flex items-center gap-1.5 rounded-full bg-green/10 px-3 py-1.5 text-xs font-semibold text-green">

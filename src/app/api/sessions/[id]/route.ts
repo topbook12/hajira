@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { forbidden, requireUser, serverError, unauthorized } from '@/lib/hajira'
+import { forbidden, requireUser, serverError, sweepAutoAbsences, unauthorized } from '@/lib/hajira'
 
 /** Live session detail — teacher sees all check-ins, student sees own + counts */
 async function GET_impl(
@@ -24,6 +24,14 @@ async function GET_impl(
   const expired = session.endsAt <= now
   const effectiveStatus = session.status === 'ACTIVE' && expired ? 'CLOSED' : session.status
 
+  // AUTO PRESENCE lazy sweep: the first client that notices the window is
+  // over finalizes the session — absentees get their ABSENT rows here even
+  // if the teacher never tapped "End session". Idempotent + one-shot.
+  if (session.autoPresence && session.status === 'ACTIVE' && expired) {
+    await sweepAutoAbsences(session.id, session.classId)
+    await db.session.update({ where: { id: session.id }, data: { status: 'CLOSED' } })
+  }
+
   if (user.role === 'TEACHER') {
     if (session.class.teacherId !== user.id) return forbidden('You are not the teacher of this session')
     const checkIns = await db.checkIn.findMany({
@@ -45,6 +53,7 @@ async function GET_impl(
         radiusM: session.radiusM,
         requireGps: session.requireGps,
         requireCode: session.requireCode,
+        autoPresence: session.autoPresence,
       },
       rosterCount,
       checkIns: checkIns.map((c) => ({
@@ -89,6 +98,7 @@ async function GET_impl(
       durationSec: session.durationSec,
       requireGps: session.requireGps,
       requireCode: session.requireCode,
+      autoPresence: session.autoPresence,
     },
     rosterCount,
     presentCount,

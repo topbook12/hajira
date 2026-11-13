@@ -133,3 +133,42 @@ export function randomClassCode() {
 export function randomSecret() {
   return crypto.randomBytes(24).toString('hex')
 }
+
+/**
+ * AUTO PRESENCE sweep — when an auto-attendance session's window is over
+ * (or the teacher ends it early), every roster student who was never seen
+ * inside the window is marked ABSENT explicitly. The report and Excel
+ * already show implicit 'A' for missing students, so this is a display /
+ * transparency upgrade for the live roster — and it is idempotent: running
+ * it twice never duplicates rows (unique sessionId+studentId).
+ */
+export async function sweepAutoAbsences(sessionId: string, classId: string) {
+  const roster = await db.membership.findMany({
+    where: { classId },
+    select: { studentId: true },
+  })
+  const seen = await db.checkIn.findMany({
+    where: { sessionId },
+    select: { studentId: true },
+  })
+  const have = new Set(seen.map((s) => s.studentId))
+  let absentCount = 0
+  for (const m of roster) {
+    if (have.has(m.studentId)) continue
+    try {
+      await db.checkIn.create({
+        data: {
+          sessionId,
+          studentId: m.studentId,
+          status: 'ABSENT',
+          method: 'AUTO',
+          gpsOk: false,
+        },
+      })
+      absentCount++
+    } catch {
+      /* P2002 race — another client swept first; that row is good enough */
+    }
+  }
+  return absentCount
+}

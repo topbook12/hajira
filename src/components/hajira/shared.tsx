@@ -113,6 +113,7 @@ const METHOD_LABEL: Record<string, string> = {
   QR: 'QR scan',
   PIN: 'Code',
   GPS: 'Location',
+  AUTO: 'Auto',
   BUTTON: 'Button',
   MANUAL: 'Manual',
 }

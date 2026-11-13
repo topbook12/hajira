@@ -10,6 +10,7 @@ import {
   KeyRound,
   Loader2,
   Play,
+  Radar,
   Radio,
   ScanLine,
   Search,
@@ -81,6 +82,7 @@ export default function TeacherClassDetail({
   const [radius, setRadius] = React.useState(100)
   const [requireGps, setRequireGps] = React.useState(true)
   const [requireCode, setRequireCode] = React.useState(true)
+  const [autoPresence, setAutoPresence] = React.useState(false)
   const [starting, setStarting] = React.useState(false)
   const [exporting, setExporting] = React.useState(false)
 
@@ -123,7 +125,8 @@ export default function TeacherClassDetail({
           durationSec: Number(durationSec),
           radiusM: radius,
           requireGps,
-          requireCode,
+          requireCode: autoPresence ? false : requireCode,
+          autoPresence,
           lat: pos?.lat,
           lng: pos?.lng,
         },
@@ -342,7 +345,11 @@ export default function TeacherClassDetail({
                 <Switch
                   id="gps-switch"
                   checked={requireGps}
-                  onCheckedChange={setRequireGps}
+                  onCheckedChange={(v) => {
+                    setRequireGps(v)
+                    // Auto attendance stands on the GPS fence — no fence, no auto
+                    if (!v) setAutoPresence(false)
+                  }}
                   className="data-[state=checked]:bg-ink"
                 />
                 <Label htmlFor="gps-switch" className="cursor-pointer font-normal">
@@ -352,12 +359,38 @@ export default function TeacherClassDetail({
               <div className="flex items-center gap-3">
                 <Switch
                   id="code-switch"
-                  checked={requireCode}
-                  onCheckedChange={setRequireCode}
+                  checked={requireCode && !autoPresence}
+                  disabled={autoPresence}
+                  onCheckedChange={(v) => {
+                    setRequireCode(v)
+                    if (v) setAutoPresence(false)
+                  }}
                   className="data-[state=checked]:bg-ink"
                 />
-                <Label htmlFor="code-switch" className="cursor-pointer font-normal">
+                <Label
+                  htmlFor="code-switch"
+                  className={'cursor-pointer font-normal' + (autoPresence ? ' opacity-60' : '')}
+                >
                   Require QR / PIN
+                </Label>
+              </div>
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="auto-switch"
+                  checked={autoPresence}
+                  disabled={!requireGps}
+                  onCheckedChange={(v) => {
+                    setAutoPresence(v)
+                    // Auto mode replaces the code entirely — students do nothing
+                    if (v) setRequireCode(false)
+                  }}
+                  className="data-[state=checked]:bg-ink"
+                />
+                <Label
+                  htmlFor="auto-switch"
+                  className={'cursor-pointer font-normal' + (!requireGps ? ' opacity-60' : '')}
+                >
+                  Auto attendance (no taps needed)
                 </Label>
               </div>
               {requireGps ? (
@@ -373,7 +406,7 @@ export default function TeacherClassDetail({
                   </span>
                 </p>
               )}
-              {!requireCode ? (
+              {!requireCode && !autoPresence ? (
                 <p className="flex items-start gap-1.5 rounded-lg bg-green/10 px-2.5 py-2 text-xs leading-relaxed text-ink">
                   <ScanLine className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                   <span>
@@ -381,6 +414,22 @@ export default function TeacherClassDetail({
                     session in their app and confirm from their seats;{' '}
                     {requireGps ? 'the GPS radius decides who is present.' : 'everyone enrolled can confirm.'}
                   </span>
+                </p>
+              ) : null}
+              {autoPresence ? (
+                <p className="flex items-start gap-1.5 rounded-lg bg-green/10 px-2.5 py-2 text-xs leading-relaxed text-ink">
+                  <Radar className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span>
+                    <b>Auto attendance</b> — students do nothing. Whoever keeps the app open
+                    inside the {radius} m radius during the window is counted present
+                    automatically. At the end, everyone not counted is marked absent (you can
+                    still override anyone).
+                  </span>
+                </p>
+              ) : null}
+              {!requireGps ? (
+                <p className="text-xs leading-relaxed text-label">
+                  Auto attendance needs GPS verification — turn location back on to enable it.
                 </p>
               ) : null}
             </div>

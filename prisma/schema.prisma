@@ -76,6 +76,7 @@ model Session {
   radiusM     Int      @default(100)
   requireGps  Boolean  @default(true)
   requireCode Boolean  @default(true) // rotating QR/PIN required for check-in
+  autoPresence Boolean @default(false) // passive sweep: app-open students inside the fence are counted automatically; no-shows become ABSENT at close
   durationSec Int      @default(120)
   startedAt   DateTime @default(now())
   endsAt      DateTime

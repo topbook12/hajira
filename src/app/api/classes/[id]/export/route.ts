@@ -130,6 +130,7 @@ async function GET_impl(
     'GPS radius (m)': s.radiusM,
     'GPS required': s.requireGps ? 'Yes' : 'No',
     'Code required': s.requireCode ? 'Yes' : 'No',
+    'Auto attendance': s.autoPresence ? 'Yes' : 'No',
   }))
 
   // Sheet 3 — Check-in Log

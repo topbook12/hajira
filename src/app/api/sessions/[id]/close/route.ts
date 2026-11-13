@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { forbidden, requireUser, serverError, unauthorized } from '@/lib/hajira'
+import { forbidden, requireUser, serverError, sweepAutoAbsences, unauthorized } from '@/lib/hajira'
 
 /** Teacher closes the session */
 async function POST_impl(
@@ -17,6 +17,13 @@ async function POST_impl(
   })
   if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
   if (session.class.teacherId !== user.id) return forbidden('You are not the teacher of this session')
+
+  // AUTO PRESENCE: the window is closing — every roster student who was
+  // never counted inside it becomes ABSENT explicitly (the whole point of
+  // the mode: present = seen in range, everyone else = absent). Idempotent.
+  if (session.autoPresence) {
+    await sweepAutoAbsences(id, session.classId)
+  }
 
   const updated = await db.session.update({
     where: { id },
